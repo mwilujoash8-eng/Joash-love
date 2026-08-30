@@ -1,0 +1,6 @@
+{
+  "name": "SchoolLink - Digital School Operating System",
+  "description": "A comprehensive, secure, and realistic Digital School Operating System with automatic device detection (smartphones and laptops), embedded Zoom virtual classrooms, direct student-teacher communication, Microsoft Excel and Word studios, ECZ continuous assessment grading, and automated report card generation.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
