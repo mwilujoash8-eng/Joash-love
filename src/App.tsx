@@ -7,7 +7,7 @@ import { MobileTopBar } from './components/mobile/MobileTopBar';
 import { MobileBottomNav } from './components/mobile/MobileBottomNav';
 import { MobileQuickActionSheet } from './components/mobile/MobileQuickActionSheet';
 import { MobileExcelView } from './components/mobile/MobileExcelView';
-import { LandingPage } from './components/common/LandingPage';
+import { SchoolPublicWebsite } from './components/website/SchoolPublicWebsite';
 import { LoginPage } from './components/common/LoginPage';
 import { HeadTeacherDashboard } from './components/dashboards/HeadTeacherDashboard';
 import { DeputyHeadDashboard } from './components/dashboards/DeputyHeadDashboard';
@@ -58,19 +58,8 @@ const SchoolLinkAppContent: React.FC = () => {
   const [isSchoolModulesOpen, setIsSchoolModulesOpen] = useState(false);
   const [activeReportCard, setActiveReportCard] = useState<TermReportCard | null>(null);
 
-  // Daily Pop-up Code Page: Trigger once per day on app open
-  React.useEffect(() => {
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const lastShown = localStorage.getItem('schoollink_daily_popup_date');
-      if (lastShown !== todayStr) {
-        setIsDailyCodeOpen(true);
-      }
-    } catch {
-      // Fallback
-      setIsDailyCodeOpen(true);
-    }
-  }, []);
+  // Daily Master Code and Modals are opened on-demand via header buttons or actions
+
 
   const handleOpenReportCard = (reportCardId: string) => {
     const found = reportCards.find((r) => r.id === reportCardId) || reportCards[0];
@@ -95,35 +84,38 @@ const SchoolLinkAppContent: React.FC = () => {
     }
   };
 
-  // If not authenticated, allow viewing Public School Website OR Login Portal
+  // Render Public School Website if active (available to guests and signed-in users)
+  if (showWebsiteLanding) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-900 font-sans antialiased">
+        <DeviceSwitcherBanner />
+        <SchoolPublicWebsite
+          onEnterPortal={(role?: UserRole) => {
+            if (!isAuthenticated && role) {
+              setSelectedInitialRole(role);
+            }
+            setShowWebsiteLanding(false);
+          }}
+          onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
+          onOpenDailyCode={() => setIsDailyCodeOpen(true)}
+        />
+
+        <SchoolCreationModal
+          isOpen={isCreateSchoolOpen}
+          onClose={() => setIsCreateSchoolOpen(false)}
+        />
+
+        <DailyMasterCodeModal
+          isOpen={isDailyCodeOpen}
+          onClose={() => setIsDailyCodeOpen(false)}
+          onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
+        />
+      </div>
+    );
+  }
+
+  // If not authenticated and not viewing website, show Login Portal
   if (!isAuthenticated) {
-    if (showWebsiteLanding) {
-      return (
-        <div className="min-h-screen bg-slate-900 text-slate-900 font-sans antialiased">
-          <DeviceSwitcherBanner />
-          <LandingPage
-            onEnterPortal={(role?: UserRole) => {
-              if (role) setSelectedInitialRole(role);
-              setShowWebsiteLanding(false);
-            }}
-            onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
-            onOpenDailyCodeModal={() => setIsDailyCodeOpen(true)}
-          />
-
-          <SchoolCreationModal
-            isOpen={isCreateSchoolOpen}
-            onClose={() => setIsCreateSchoolOpen(false)}
-          />
-
-          <DailyMasterCodeModal
-            isOpen={isDailyCodeOpen}
-            onClose={() => setIsDailyCodeOpen(false)}
-            onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
-          />
-        </div>
-      );
-    }
-
     return (
       <div className="min-h-screen bg-slate-900 text-slate-900 font-sans antialiased">
         <DeviceSwitcherBanner />

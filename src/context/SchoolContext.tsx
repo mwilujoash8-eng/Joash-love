@@ -270,149 +270,71 @@ const STORAGE_KEYS = {
   SUB_REQUESTS: 'schoollink_sub_requests_v1',
 };
 
+function safeLoad<T>(key: string, defaultValue: T): T {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return defaultValue;
+    const saved = localStorage.getItem(key);
+    if (!saved) return defaultValue;
+    return JSON.parse(saved);
+  } catch (e) {
+    console.warn(`[Storage] Error reading key "${key}", using default:`, e);
+    return defaultValue;
+  }
+}
+
+function safeSave(key: string, value: any): void {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+  } catch (e) {
+    console.warn(`[Storage] Error saving key "${key}":`, e);
+  }
+}
+
 export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [schools, setSchools] = useState<School[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SCHOOLS);
-    return saved ? JSON.parse(saved) : INITIAL_SCHOOLS;
-  });
-
-  const [allUsers, setAllUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
-  });
-
+  const [schools, setSchools] = useState<School[]>(() => safeLoad(STORAGE_KEYS.SCHOOLS, INITIAL_SCHOOLS));
+  const [allUsers, setAllUsers] = useState<User[]>(() => safeLoad(STORAGE_KEYS.USERS, INITIAL_USERS));
   const [currentSchoolId, setCurrentSchoolId] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.CURRENT_SCHOOL_ID) || 'school_kabwe_tech';
+    try {
+      return localStorage.getItem(STORAGE_KEYS.CURRENT_SCHOOL_ID) || 'school_kabwe_tech';
+    } catch {
+      return 'school_kabwe_tech';
+    }
   });
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID) || 'user_head_banda';
+    try {
+      return localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID) || 'user_head_banda';
+    } catch {
+      return 'user_head_banda';
+    }
   });
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.IS_AUTH);
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-
-  const [assessments, setAssessments] = useState<AssessmentRecord[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ASSESSMENTS);
-    return saved ? JSON.parse(saved) : INITIAL_ASSESSMENTS;
-  });
-
-  const [reportCards, setReportCards] = useState<TermReportCard[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.REPORT_CARDS);
-    return saved ? JSON.parse(saved) : INITIAL_REPORT_CARDS;
-  });
-
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
-    return saved ? JSON.parse(saved) : INITIAL_ATTENDANCE;
-  });
-
-  const [assignments, setAssignments] = useState<Assignment[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS);
-    return saved ? JSON.parse(saved) : INITIAL_ASSIGNMENTS;
-  });
-
-  const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
-    return saved ? JSON.parse(saved) : INITIAL_ANNOUNCEMENTS;
-  });
-
-  const [ptaRecords, setPtaRecords] = useState<PTARecord[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PTA);
-    return saved ? JSON.parse(saved) : INITIAL_PTA_RECORDS;
-  });
-
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.AUDIT);
-    return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
-  });
-
-  const [zoomMeetings, setZoomMeetings] = useState<ZoomMeeting[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ZOOM_MEETINGS);
-    return saved ? JSON.parse(saved) : INITIAL_ZOOM_MEETINGS;
-  });
-
-  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MESSAGES);
-    return saved ? JSON.parse(saved) : INITIAL_DIRECT_MESSAGES;
-  });
-
-  const [teacherDutyLogs, setTeacherDutyLogs] = useState<TeacherDailyDutyLog[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.TEACHER_DUTY_LOGS);
-    return saved ? JSON.parse(saved) : INITIAL_TEACHER_DUTY_LOGS;
-  });
-
-  const [stories, setStories] = useState<StoryItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.STORIES);
-    return saved ? JSON.parse(saved) : INITIAL_STORIES;
-  });
-
-  const [groups, setGroups] = useState<SchoolGroup[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.GROUPS);
-    return saved ? JSON.parse(saved) : INITIAL_GROUPS;
-  });
-
-  const [groupPosts, setGroupPosts] = useState<GroupPost[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.GROUP_POSTS);
-    return saved ? JSON.parse(saved) : INITIAL_GROUP_POSTS;
-  });
-
-  const [financePublications, setFinancePublications] = useState<FinancePublication[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.FINANCE_PUBS);
-    return saved ? JSON.parse(saved) : INITIAL_FINANCE_PUBLICATIONS;
-  });
-
-  const [parentFeeStatements, setParentFeeStatements] = useState<Record<string, ParentFeeStatement>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PARENT_FEES);
-    return saved ? JSON.parse(saved) : INITIAL_PARENT_FEE_STATEMENTS;
-  });
-
-  const [busTrackers, setBusTrackers] = useState<BusRouteTracker[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.BUS_TRACKERS);
-    return saved ? JSON.parse(saved) : INITIAL_BUS_TRACKERS;
-  });
-
-  const [guardianPasses, setGuardianPasses] = useState<Record<string, GuardianPickupPass>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.GUARDIAN_PASSES);
-    return saved ? JSON.parse(saved) : INITIAL_GUARDIAN_PASSES;
-  });
-
-  const [behaviorLogs, setBehaviorLogs] = useState<StudentBehaviorLog[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.BEHAVIOR_LOGS);
-    return saved ? JSON.parse(saved) : INITIAL_BEHAVIOR_LOGS;
-  });
-
-  const [conferences, setConferences] = useState<ParentTeacherConference[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CONFERENCES);
-    return saved ? JSON.parse(saved) : INITIAL_CONFERENCES;
-  });
-
-  const [permissionSlips, setPermissionSlips] = useState<PermissionSlip[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PERMISSION_SLIPS);
-    return saved ? JSON.parse(saved) : INITIAL_PERMISSION_SLIPS;
-  });
-
-  const [clinicVisits, setClinicVisits] = useState<HealthClinicVisit[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CLINIC_VISITS);
-    return saved ? JSON.parse(saved) : INITIAL_CLINIC_VISITS;
-  });
-
-  const [canteenWallets, setCanteenWallets] = useState<Record<string, CanteenWallet>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CANTEEN_WALLETS);
-    return saved ? JSON.parse(saved) : INITIAL_CANTEEN_WALLETS;
-  });
-
-  const [activationKeys, setActivationKeys] = useState<SubscriptionActivationKey[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVATION_KEYS);
-    return saved ? JSON.parse(saved) : INITIAL_ACTIVATION_KEYS;
-  });
-
-  const [pendingSubRequests, setPendingSubRequests] = useState<PendingSubscriptionRequest[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SUB_REQUESTS);
-    return saved ? JSON.parse(saved) : INITIAL_SUBSCRIPTION_REQUESTS;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => safeLoad(STORAGE_KEYS.IS_AUTH, true));
+  const [assessments, setAssessments] = useState<AssessmentRecord[]>(() => safeLoad(STORAGE_KEYS.ASSESSMENTS, INITIAL_ASSESSMENTS));
+  const [reportCards, setReportCards] = useState<TermReportCard[]>(() => safeLoad(STORAGE_KEYS.REPORT_CARDS, INITIAL_REPORT_CARDS));
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => safeLoad(STORAGE_KEYS.ATTENDANCE, INITIAL_ATTENDANCE));
+  const [assignments, setAssignments] = useState<Assignment[]>(() => safeLoad(STORAGE_KEYS.ASSIGNMENTS, INITIAL_ASSIGNMENTS));
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => safeLoad(STORAGE_KEYS.ANNOUNCEMENTS, INITIAL_ANNOUNCEMENTS));
+  const [ptaRecords, setPtaRecords] = useState<PTARecord[]>(() => safeLoad(STORAGE_KEYS.PTA, INITIAL_PTA_RECORDS));
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => safeLoad(STORAGE_KEYS.AUDIT, INITIAL_AUDIT_LOGS));
+  const [zoomMeetings, setZoomMeetings] = useState<ZoomMeeting[]>(() => safeLoad(STORAGE_KEYS.ZOOM_MEETINGS, INITIAL_ZOOM_MEETINGS));
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(() => safeLoad(STORAGE_KEYS.MESSAGES, INITIAL_DIRECT_MESSAGES));
+  const [teacherDutyLogs, setTeacherDutyLogs] = useState<TeacherDailyDutyLog[]>(() => safeLoad(STORAGE_KEYS.TEACHER_DUTY_LOGS, INITIAL_TEACHER_DUTY_LOGS));
+  const [stories, setStories] = useState<StoryItem[]>(() => safeLoad(STORAGE_KEYS.STORIES, INITIAL_STORIES));
+  const [groups, setGroups] = useState<SchoolGroup[]>(() => safeLoad(STORAGE_KEYS.GROUPS, INITIAL_GROUPS));
+  const [groupPosts, setGroupPosts] = useState<GroupPost[]>(() => safeLoad(STORAGE_KEYS.GROUP_POSTS, INITIAL_GROUP_POSTS));
+  const [financePublications, setFinancePublications] = useState<FinancePublication[]>(() => safeLoad(STORAGE_KEYS.FINANCE_PUBS, INITIAL_FINANCE_PUBLICATIONS));
+  const [parentFeeStatements, setParentFeeStatements] = useState<Record<string, ParentFeeStatement>>(() => safeLoad(STORAGE_KEYS.PARENT_FEES, INITIAL_PARENT_FEE_STATEMENTS));
+  const [busTrackers, setBusTrackers] = useState<BusRouteTracker[]>(() => safeLoad(STORAGE_KEYS.BUS_TRACKERS, INITIAL_BUS_TRACKERS));
+  const [guardianPasses, setGuardianPasses] = useState<Record<string, GuardianPickupPass>>(() => safeLoad(STORAGE_KEYS.GUARDIAN_PASSES, INITIAL_GUARDIAN_PASSES));
+  const [behaviorLogs, setBehaviorLogs] = useState<StudentBehaviorLog[]>(() => safeLoad(STORAGE_KEYS.BEHAVIOR_LOGS, INITIAL_BEHAVIOR_LOGS));
+  const [conferences, setConferences] = useState<ParentTeacherConference[]>(() => safeLoad(STORAGE_KEYS.CONFERENCES, INITIAL_CONFERENCES));
+  const [permissionSlips, setPermissionSlips] = useState<PermissionSlip[]>(() => safeLoad(STORAGE_KEYS.PERMISSION_SLIPS, INITIAL_PERMISSION_SLIPS));
+  const [clinicVisits, setClinicVisits] = useState<HealthClinicVisit[]>(() => safeLoad(STORAGE_KEYS.CLINIC_VISITS, INITIAL_CLINIC_VISITS));
+  const [canteenWallets, setCanteenWallets] = useState<Record<string, CanteenWallet>>(() => safeLoad(STORAGE_KEYS.CANTEEN_WALLETS, INITIAL_CANTEEN_WALLETS));
+  const [activationKeys, setActivationKeys] = useState<SubscriptionActivationKey[]>(() => safeLoad(STORAGE_KEYS.ACTIVATION_KEYS, INITIAL_ACTIVATION_KEYS));
+  const [pendingSubRequests, setPendingSubRequests] = useState<PendingSubscriptionRequest[]>(() => safeLoad(STORAGE_KEYS.SUB_REQUESTS, INITIAL_SUBSCRIPTION_REQUESTS));
 
   // Real-time Zambian Academic Calendar Computation Engine
   const [simulatedCalendarDate, setSimulatedCalendarDate] = useState<string | undefined>(undefined);
@@ -454,37 +376,37 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ];
   });
 
-  // Sync to local storage
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.SCHOOLS, JSON.stringify(schools)); }, [schools]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(allUsers)); }, [allUsers]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CURRENT_SCHOOL_ID, currentSchoolId); }, [currentSchoolId]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, currentUserId); }, [currentUserId]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify(assessments)); }, [assessments]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.REPORT_CARDS, JSON.stringify(reportCards)); }, [reportCards]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendanceRecords)); }, [attendanceRecords]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(assignments)); }, [assignments]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements)); }, [announcements]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.PTA, JSON.stringify(ptaRecords)); }, [ptaRecords]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.AUDIT, JSON.stringify(auditLogs)); }, [auditLogs]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications)); }, [notifications]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.IS_AUTH, JSON.stringify(isAuthenticated)); }, [isAuthenticated]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ZOOM_MEETINGS, JSON.stringify(zoomMeetings)); }, [zoomMeetings]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(directMessages)); }, [directMessages]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.TEACHER_DUTY_LOGS, JSON.stringify(teacherDutyLogs)); }, [teacherDutyLogs]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.STORIES, JSON.stringify(stories)); }, [stories]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(groups)); }, [groups]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.GROUP_POSTS, JSON.stringify(groupPosts)); }, [groupPosts]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.FINANCE_PUBS, JSON.stringify(financePublications)); }, [financePublications]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.PARENT_FEES, JSON.stringify(parentFeeStatements)); }, [parentFeeStatements]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.BUS_TRACKERS, JSON.stringify(busTrackers)); }, [busTrackers]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.GUARDIAN_PASSES, JSON.stringify(guardianPasses)); }, [guardianPasses]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.BEHAVIOR_LOGS, JSON.stringify(behaviorLogs)); }, [behaviorLogs]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CONFERENCES, JSON.stringify(conferences)); }, [conferences]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.PERMISSION_SLIPS, JSON.stringify(permissionSlips)); }, [permissionSlips]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CLINIC_VISITS, JSON.stringify(clinicVisits)); }, [clinicVisits]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CANTEEN_WALLETS, JSON.stringify(canteenWallets)); }, [canteenWallets]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ACTIVATION_KEYS, JSON.stringify(activationKeys)); }, [activationKeys]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.SUB_REQUESTS, JSON.stringify(pendingSubRequests)); }, [pendingSubRequests]);
+  // Sync to local storage safely
+  useEffect(() => { safeSave(STORAGE_KEYS.SCHOOLS, schools); }, [schools]);
+  useEffect(() => { safeSave(STORAGE_KEYS.USERS, allUsers); }, [allUsers]);
+  useEffect(() => { safeSave(STORAGE_KEYS.CURRENT_SCHOOL_ID, currentSchoolId); }, [currentSchoolId]);
+  useEffect(() => { safeSave(STORAGE_KEYS.CURRENT_USER_ID, currentUserId); }, [currentUserId]);
+  useEffect(() => { safeSave(STORAGE_KEYS.ASSESSMENTS, assessments); }, [assessments]);
+  useEffect(() => { safeSave(STORAGE_KEYS.REPORT_CARDS, reportCards); }, [reportCards]);
+  useEffect(() => { safeSave(STORAGE_KEYS.ATTENDANCE, attendanceRecords); }, [attendanceRecords]);
+  useEffect(() => { safeSave(STORAGE_KEYS.ASSIGNMENTS, assignments); }, [assignments]);
+  useEffect(() => { safeSave(STORAGE_KEYS.ANNOUNCEMENTS, announcements); }, [announcements]);
+  useEffect(() => { safeSave(STORAGE_KEYS.PTA, ptaRecords); }, [ptaRecords]);
+  useEffect(() => { safeSave(STORAGE_KEYS.AUDIT, auditLogs); }, [auditLogs]);
+  useEffect(() => { safeSave(STORAGE_KEYS.NOTIFICATIONS, notifications); }, [notifications]);
+  useEffect(() => { safeSave(STORAGE_KEYS.IS_AUTH, isAuthenticated); }, [isAuthenticated]);
+  useEffect(() => { safeSave(STORAGE_KEYS.ZOOM_MEETINGS, zoomMeetings); }, [zoomMeetings]);
+  useEffect(() => { safeSave(STORAGE_KEYS.MESSAGES, directMessages); }, [directMessages]);
+  useEffect(() => { safeSave(STORAGE_KEYS.TEACHER_DUTY_LOGS, teacherDutyLogs); }, [teacherDutyLogs]);
+  useEffect(() => { safeSave(STORAGE_KEYS.STORIES, stories); }, [stories]);
+  useEffect(() => { safeSave(STORAGE_KEYS.GROUPS, groups); }, [groups]);
+  useEffect(() => { safeSave(STORAGE_KEYS.GROUP_POSTS, groupPosts); }, [groupPosts]);
+  useEffect(() => { safeSave(STORAGE_KEYS.FINANCE_PUBS, financePublications); }, [financePublications]);
+  useEffect(() => { safeSave(STORAGE_KEYS.PARENT_FEES, parentFeeStatements); }, [parentFeeStatements]);
+  useEffect(() => { safeSave(STORAGE_KEYS.BUS_TRACKERS, busTrackers); }, [busTrackers]);
+  useEffect(() => { safeSave(STORAGE_KEYS.GUARDIAN_PASSES, guardianPasses); }, [guardianPasses]);
+  useEffect(() => { safeSave(STORAGE_KEYS.BEHAVIOR_LOGS, behaviorLogs); }, [behaviorLogs]);
+  useEffect(() => { safeSave(STORAGE_KEYS.CONFERENCES, conferences); }, [conferences]);
+  useEffect(() => { safeSave(STORAGE_KEYS.PERMISSION_SLIPS, permissionSlips); }, [permissionSlips]);
+  useEffect(() => { safeSave(STORAGE_KEYS.CLINIC_VISITS, clinicVisits); }, [clinicVisits]);
+  useEffect(() => { safeSave(STORAGE_KEYS.CANTEEN_WALLETS, canteenWallets); }, [canteenWallets]);
+  useEffect(() => { safeSave(STORAGE_KEYS.ACTIVATION_KEYS, activationKeys); }, [activationKeys]);
+  useEffect(() => { safeSave(STORAGE_KEYS.SUB_REQUESTS, pendingSubRequests); }, [pendingSubRequests]);
 
   const currentSchool = schools.find((s) => s.id === currentSchoolId) || schools[0] || INITIAL_SCHOOLS[0];
   const currentUser = allUsers.find((u) => u.id === currentUserId) || allUsers[0] || INITIAL_USERS[0];

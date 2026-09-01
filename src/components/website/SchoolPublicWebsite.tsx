@@ -38,11 +38,13 @@ import { UserRole } from '../../types';
 interface SchoolPublicWebsiteProps {
   onEnterPortal: (suggestedRole?: UserRole) => void;
   onOpenDailyCode?: () => void;
+  onOpenCreateSchool?: () => void;
 }
 
 export const SchoolPublicWebsite: React.FC<SchoolPublicWebsiteProps> = ({
   onEnterPortal,
   onOpenDailyCode,
+  onOpenCreateSchool,
 }) => {
   const { currentSchool, schools, switchSchool, announcements, currentUser, isAuthenticated } = useSchool();
 
@@ -94,13 +96,57 @@ export const SchoolPublicWebsite: React.FC<SchoolPublicWebsiteProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
+      {/* AUTHENTICATED ACTIVE SESSION BANNER */}
+      {isAuthenticated && (
+        <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white px-4 py-2.5 text-xs font-semibold flex flex-wrap items-center justify-between gap-2 shadow-inner border-b border-emerald-700">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span>
+              Signed in to {currentSchool.name} as <strong>{currentUser?.fullName || 'User'}</strong> ({currentUser?.role ? currentUser.role.replace(/_/g, ' ').toUpperCase() : 'USER'})
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onEnterPortal()}
+            className="bg-white hover:bg-emerald-50 text-emerald-900 px-3.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+          >
+            <span>Return to My Dashboard</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* 1. TOP ANNOUNCEMENT & CONTACT BAR */}
       <div className="bg-slate-950 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Official Institutional Website — {currentSchool.name}</span>
+              <span>Official Institutional Website</span>
+            </div>
+            <span className="hidden md:inline text-slate-600">|</span>
+            {/* Institution Switcher */}
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <select
+                aria-label="Switch School Website"
+                value={currentSchool.id}
+                onChange={(e) => {
+                  if (e.target.value === 'CREATE_NEW') {
+                    if (onOpenCreateSchool) onOpenCreateSchool();
+                  } else {
+                    switchSchool(e.target.value);
+                  }
+                }}
+                className="bg-slate-900 text-slate-200 border border-slate-700 rounded-md px-2 py-0.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              >
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.code})
+                  </option>
+                ))}
+                {onOpenCreateSchool && <option value="CREATE_NEW">+ Register New School...</option>}
+              </select>
             </div>
             <span className="hidden md:inline text-slate-600">|</span>
             <div className="hidden md:flex items-center gap-1 text-slate-400">
