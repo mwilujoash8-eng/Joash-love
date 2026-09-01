@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mwilujoash8@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Subscription payment requests submitted by parents & school staff
+    match /subscriptionRequests/{requestId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(requestId)
+        && incoming().targetType in ['school', 'parent']
+        && incoming().requestedTier in ['medium', 'premium']
+        && incoming().status in ['pending_review', 'approved']
+        && incoming().priceZMW is number
+        && incoming().requesterName is string
+        && incoming().requesterName.size() <= 200;
+      allow update: if isSignedIn() && isValidId(requestId) && (
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy', 'reviewNotes'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Single-use activation vouchers
+    match /activationKeys/{keyId} {
+      allow get, list: if isSignedIn();
+      allow create: if isAdmin() && isValidId(keyId);
+      allow update: if isSignedIn() && isValidId(keyId) && (
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'redeemedAt', 'redeemedBy'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Google Meet conferencing sessions
+    match /meetSpaces/{spaceId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(spaceId)
+        && incoming().meetUri is string
+        && incoming().title is string;
+      allow update, delete: if isSignedIn() && isValidId(spaceId) && (
+        isAdmin() || existing().hostEmail == request.auth.token.email
+      );
+    }
+
+    // Admins registry
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

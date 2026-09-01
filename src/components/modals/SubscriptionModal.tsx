@@ -14,7 +14,9 @@ import {
   Clock,
   ArrowRight,
   Receipt,
-  Check
+  Check,
+  KeyRound,
+  AlertCircle
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import {
@@ -26,7 +28,7 @@ import {
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultMode?: 'school' | 'parent';
+  defaultMode?: 'school' | 'parent' | 'redeem';
 }
 
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
@@ -34,13 +36,21 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   onClose,
   defaultMode = 'school'
 }) => {
-  const { currentSchool, currentUser, allUsers, updateSchoolSubscription, updateParentSubscription } = useSchool();
+  const {
+    currentSchool,
+    currentUser,
+    allUsers,
+    updateSchoolSubscription,
+    updateParentSubscription,
+    submitSubscriptionRequest,
+    authenticateWithMasterPasskey
+  } = useSchool();
 
   const isStaff = currentUser.role === 'head_teacher' || currentUser.role === 'deputy_head_teacher' || currentUser.role === 'teacher' || currentUser.role === 'platform_admin';
   const isParent = currentUser.role === 'parent';
 
-  const [activeTab, setActiveTab] = useState<'school' | 'parent'>(
-    defaultMode === 'parent' || isParent ? 'parent' : 'school'
+  const [activeTab, setActiveTab] = useState<'school' | 'parent' | 'redeem'>(
+    defaultMode === 'redeem' ? 'redeem' : defaultMode === 'parent' || isParent ? 'parent' : 'school'
   );
 
   // School subscription state
@@ -48,21 +58,31 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const [selectedSchoolTier, setSelectedSchoolTier] = useState<SchoolStaffSubscriptionTier>(currentSchoolTier);
   const [schoolBillingCycle, setSchoolBillingCycle] = useState<'monthly' | 'annually'>('monthly');
   const [schoolPaymentMethod, setSchoolPaymentMethod] = useState<SubscriptionPaymentMethod>('airtel_money');
+  const [schoolPaymentRef, setSchoolPaymentRef] = useState('');
 
   // Parent subscription state
   const currentParentTier: ParentSubscriptionTier = currentUser.parentSubscription?.tier || 'medium';
   const [selectedParentTier, setSelectedParentTier] = useState<ParentSubscriptionTier>(currentParentTier);
   const [parentBillingCycle, setParentBillingCycle] = useState<'monthly' | 'annually'>('monthly');
   const [parentPaymentMethod, setParentPaymentMethod] = useState<SubscriptionPaymentMethod>('airtel_money');
+  const [parentPaymentRef, setParentPaymentRef] = useState('');
+
+  // Redeem Key State
+  const [inputActivationKey, setInputActivationKey] = useState('');
+  const [redeemStatus, setRedeemStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Payment form state
-  const [mobileNumber, setMobileNumber] = useState(currentUser.phone || '+260 977 000000');
+  const [mobileNumber, setMobileNumber] = useState(currentUser.phone || '0775777069');
+  const [payerName, setPayerName] = useState(currentUser.fullName || '');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
   const [successReceipt, setSuccessReceipt] = useState<{
     reference: string;
     tier: string;
     amountZMW: number;
     target: string;
+    isPendingReview?: boolean;
+    paymentChannel?: string;
   } | null>(null);
 
   if (!isOpen) return null;
@@ -71,32 +91,111 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     (u) => u.schoolId === currentSchool.id && (u.role === 'head_teacher' || u.role === 'deputy_head_teacher' || u.role === 'teacher')
   ).length || 1;
 
-  const handleSchoolSubmit = () => {
+  // Manual payment submission: ALWAYS enters admin queue with status 'pending_review'
+  const handleSchoolHavePaid = () => {
+    setPaymentFormError(null);
+    if (!schoolPaymentRef.trim()) {
+      setPaymentFormError('Please enter your Mobile Money transaction ID / SMS reference number.');
+      return;
+    }
+    if (!mobileNumber.trim()) {
+      setPaymentFormError('Please enter your sender mobile money phone number.');
+      return;
+    }
+
     setIsProcessing(true);
     setTimeout(() => {
-      updateSchoolSubscription(currentSchool.id, selectedSchoolTier, schoolBillingCycle, schoolPaymentMethod);
+      const generatedRef = schoolPaymentRef.trim().toUpperCase();
+      const amount = selectedSchoolTier === 'premium' ? 450 : 400;
+
+      submitSubscriptionRequest({
+        targetType: 'school',
+        targetId: currentSchool.id,
+        targetName: currentSchool.name,
+        requesterId: currentUser.id,
+        requesterName: payerName.trim() || currentUser.fullName,
+        requesterEmail: currentUser.email,
+        requesterPhone: mobileNumber.trim(),
+        requestedTier: selectedSchoolTier,
+        billingCycle: schoolBillingCycle,
+        priceZMW: amount,
+        paymentMethod: schoolPaymentMethod,
+        paymentReference: generatedRef,
+        notes: `Manual payment of K${amount} sent to Admin Number 0775777069 for ${currentSchool.name}`
+      });
+
       setIsProcessing(false);
       setSuccessReceipt({
-        reference: `SCH-SUB-${Math.floor(100000 + Math.random() * 900000)}`,
-        tier: selectedSchoolTier === 'premium' ? 'Premium (K450/month)' : 'Medium (K400/month)',
-        amountZMW: selectedSchoolTier === 'premium' ? 450 : 400,
-        target: `${currentSchool.name} (Covers all ${staffCount} staff members)`
+        reference: generatedRef,
+        tier: selectedSchoolTier === 'premium' ? 'Premium Tier (K450/month)' : 'Medium Tier (K400/month)',
+        amountZMW: amount,
+        target: `${currentSchool.name} (Covers all ${staffCount} staff members)`,
+        paymentChannel: schoolPaymentMethod.replace('_', ' ').toUpperCase(),
+        isPendingReview: true
       });
-    }, 800);
+    }, 600);
   };
 
-  const handleParentSubmit = () => {
+  // Manual parent payment submission: ALWAYS enters admin queue with status 'pending_review'
+  const handleParentHavePaid = () => {
+    setPaymentFormError(null);
+    if (!parentPaymentRef.trim()) {
+      setPaymentFormError('Please enter your Mobile Money transaction ID / SMS reference number.');
+      return;
+    }
+    if (!mobileNumber.trim()) {
+      setPaymentFormError('Please enter your sender mobile money phone number.');
+      return;
+    }
+
     setIsProcessing(true);
     setTimeout(() => {
-      updateParentSubscription(currentUser.id, selectedParentTier, parentBillingCycle, parentPaymentMethod);
+      const generatedRef = parentPaymentRef.trim().toUpperCase();
+      const amount = selectedParentTier === 'premium' ? 200 : 150;
+
+      submitSubscriptionRequest({
+        targetType: 'parent',
+        targetId: currentUser.id,
+        targetName: currentUser.fullName,
+        requesterId: currentUser.id,
+        requesterName: payerName.trim() || currentUser.fullName,
+        requesterEmail: currentUser.email,
+        requesterPhone: mobileNumber.trim(),
+        requestedTier: selectedParentTier,
+        billingCycle: parentBillingCycle,
+        priceZMW: amount,
+        paymentMethod: parentPaymentMethod,
+        paymentReference: generatedRef,
+        notes: `Manual payment of K${amount} sent to Admin Number 0775777069 for Parent ${currentUser.fullName}`
+      });
+
       setIsProcessing(false);
       setSuccessReceipt({
-        reference: `PAR-SUB-${Math.floor(100000 + Math.random() * 900000)}`,
-        tier: selectedParentTier === 'premium' ? 'Premium (K200/month)' : 'Medium (K150/month)',
-        amountZMW: selectedParentTier === 'premium' ? 200 : 150,
-        target: `Parent Account (${currentUser.fullName})`
+        reference: generatedRef,
+        tier: selectedParentTier === 'premium' ? 'Premium Tier (K200/month)' : 'Medium Tier (K150/month)',
+        amountZMW: amount,
+        target: `Parent Account (${currentUser.fullName})`,
+        paymentChannel: parentPaymentMethod.replace('_', ' ').toUpperCase(),
+        isPendingReview: true
       });
-    }, 800);
+    }, 600);
+  };
+
+  const handleRedeemKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    setRedeemStatus(null);
+    if (!inputActivationKey.trim()) {
+      setRedeemStatus({ type: 'error', message: 'Please enter a valid secret activation code.' });
+      return;
+    }
+
+    const res = authenticateWithMasterPasskey(inputActivationKey.trim());
+    if (res.success) {
+      setRedeemStatus({ type: 'success', message: res.message });
+      setInputActivationKey('');
+    } else {
+      setRedeemStatus({ type: 'error', message: res.message });
+    }
   };
 
   return (
@@ -128,22 +227,22 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         </div>
 
         {/* Tab Selector */}
-        <div className="bg-slate-100 p-2 border-b border-slate-200 flex gap-2">
+        <div className="bg-slate-100 p-2 border-b border-slate-200 flex flex-wrap gap-2">
           <button
             onClick={() => {
               setActiveTab('school');
               setSuccessReceipt(null);
             }}
-            className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
+            className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
               activeTab === 'school'
                 ? 'bg-white text-slate-900 shadow-sm border border-slate-300'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Building className="w-4 h-4 text-emerald-600" />
-            <span>School Staff Subscription</span>
+            <span>School Staff</span>
             <span className="hidden sm:inline text-[11px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded">
-              Paid Once by School &bull; All Staff Covered
+              Institutional (K400-K450)
             </span>
           </button>
 
@@ -152,49 +251,75 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               setActiveTab('parent');
               setSuccessReceipt(null);
             }}
-            className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
+            className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
               activeTab === 'parent'
                 ? 'bg-white text-slate-900 shadow-sm border border-slate-300'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Users className="w-4 h-4 text-teal-600" />
-            <span>Parent Subscription</span>
+            <span>Parent Account</span>
             <span className="hidden sm:inline text-[11px] bg-teal-100 text-teal-800 font-semibold px-2 py-0.5 rounded">
-              Individual Account
+              Individual (K150-K200)
             </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('redeem');
+              setSuccessReceipt(null);
+              setRedeemStatus(null);
+            }}
+            className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
+              activeTab === 'redeem'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-300'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <KeyRound className="w-4 h-4 text-indigo-600" />
+            <span>Redeem Secret Key</span>
           </button>
         </div>
 
         {/* Body Content */}
         <div className="p-5 sm:p-6 flex-1">
           {successReceipt ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center max-w-lg mx-auto">
-              <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto mb-3">
+            <div className={`${successReceipt.isPendingReview ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'} border rounded-2xl p-6 text-center max-w-lg mx-auto`}>
+              <div className={`w-12 h-12 rounded-full ${successReceipt.isPendingReview ? 'bg-amber-600' : 'bg-emerald-600'} text-white flex items-center justify-center mx-auto mb-3`}>
                 <Check className="w-6 h-6 stroke-[3]" />
               </div>
-              <h3 className="text-lg font-bold text-emerald-950">Subscription Activated Successfully!</h3>
-              <p className="text-xs text-emerald-800 mt-1">
-                Your license tier has been verified and applied immediately to the system.
+              <h3 className={`text-lg font-bold ${successReceipt.isPendingReview ? 'text-amber-950' : 'text-emerald-950'}`}>
+                {successReceipt.isPendingReview ? 'Payment Proof Submitted for Verification' : 'Subscription Activated Successfully!'}
+              </h3>
+              <p className={`text-xs ${successReceipt.isPendingReview ? 'text-amber-800' : 'text-emerald-800'} mt-1`}>
+                {successReceipt.isPendingReview
+                  ? 'Your transaction reference has been logged into the Master Database. The Platform Administrator (Mwilu Joash) will verify and approve your subscription shortly.'
+                  : 'Your license tier has been verified and applied immediately to the system.'}
               </p>
 
-              <div className="bg-white border border-emerald-200 rounded-xl p-4 my-4 text-left font-mono text-xs space-y-2">
+              <div className="bg-white border border-slate-200 rounded-xl p-4 my-4 text-left font-mono text-xs space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Transaction Ref:</span>
                   <span className="font-bold text-slate-900">{successReceipt.reference}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Selected Tier:</span>
-                  <span className="font-bold text-emerald-700">{successReceipt.tier}</span>
+                  <span className="font-bold text-slate-900">{successReceipt.tier}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Amount Charged:</span>
+                  <span className="text-slate-500">Amount:</span>
                   <span className="font-bold text-slate-900">K{successReceipt.amountZMW} ZMW / month</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Beneficiary:</span>
                   <span className="font-bold text-slate-900 text-right truncate max-w-[200px]">{successReceipt.target}</span>
                 </div>
+                {successReceipt.isPendingReview && (
+                  <div className="flex justify-between text-amber-700 font-bold pt-1 border-t border-slate-100">
+                    <span>Database Status:</span>
+                    <span>Pending Administrator Review</span>
+                  </div>
+                )}
               </div>
 
               <button
@@ -202,10 +327,65 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   setSuccessReceipt(null);
                   onClose();
                 }}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition text-sm shadow-sm"
+                className={`w-full ${successReceipt.isPendingReview ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white font-bold py-2.5 rounded-xl transition text-sm shadow-sm cursor-pointer`}
               >
                 Return to Dashboard
               </button>
+            </div>
+          ) : activeTab === 'redeem' ? (
+            <div className="max-w-md mx-auto py-4 space-y-5">
+              <div className="text-center space-y-1">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center mx-auto mb-2 border border-indigo-100">
+                  <KeyRound className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Redeem Single-Use Activation Key</h3>
+                <p className="text-xs text-slate-500">
+                  Enter the secret authorization code provided by the Platform Administrator to immediately activate your subscription.
+                </p>
+              </div>
+
+              {redeemStatus && (
+                <div
+                  className={`p-4 rounded-xl border text-xs flex items-start gap-2.5 animate-in fade-in ${
+                    redeemStatus.type === 'success'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                      : 'bg-rose-50 border-rose-300 text-rose-950'
+                  }`}
+                >
+                  {redeemStatus.type === 'success' ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <p className="font-medium">{redeemStatus.message}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleRedeemKey} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Secret Key / Authorization Code
+                  </label>
+                  <input
+                    type="password"
+                    value={inputActivationKey}
+                    onChange={(e) => setInputActivationKey(e.target.value)}
+                    placeholder="Enter key code..."
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm font-mono text-slate-900 outline-hidden"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Codes are encrypted and managed exclusively in the administrator database.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>Verify & Unlock Subscription</span>
+                </button>
+              </form>
             </div>
           ) : activeTab === 'school' ? (
             <div className="space-y-6">
@@ -373,61 +553,129 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 </div>
               </div>
 
-              {/* Payment Method Selection */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
-                  Zambian Payment Channel
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              {/* Payment Method & Manual Transfer Instructions */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Select Payment Method
+                  </h4>
+                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                    Manual Verification Workflow
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'airtel_money', label: 'Airtel Money', color: 'text-red-600' },
-                    { id: 'mtn_money', label: 'MTN MoMo', color: 'text-yellow-600' },
-                    { id: 'zamtel_money', label: 'Zamtel Kwacha', color: 'text-emerald-600' },
-                    { id: 'card_visa_mastercard', label: 'Visa / Mastercard', color: 'text-blue-600' }
+                    { id: 'airtel_money', label: 'Airtel Money', color: 'text-red-600', code: '*115#' },
+                    { id: 'mtn_money', label: 'MTN MoMo', color: 'text-yellow-600', code: '*303#' },
+                    { id: 'zamtel_money', label: 'Zamtel Kwacha', color: 'text-emerald-600', code: '*115#' },
+                    { id: 'card_visa_mastercard', label: 'Visa / Mastercard', color: 'text-blue-600', code: 'Bank Transfer' }
                   ].map((m) => (
                     <button
                       key={m.id}
                       type="button"
                       onClick={() => setSchoolPaymentMethod(m.id as SubscriptionPaymentMethod)}
-                      className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center text-center ${
+                      className={`p-3 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center text-center gap-0.5 cursor-pointer ${
                         schoolPaymentMethod === m.id
-                          ? 'border-emerald-600 bg-white shadow-sm ring-1 ring-emerald-500'
-                          : 'border-slate-200 bg-white/60 hover:bg-white text-slate-700'
+                          ? 'border-emerald-600 bg-white shadow-sm ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 bg-white/70 hover:bg-white text-slate-700'
                       }`}
                     >
                       <span className={m.color}>{m.label}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{m.code}</span>
                     </button>
                   ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="flex-1 w-full">
-                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">Mobile Money / Contact Number</label>
+                {/* Step-by-Step Payment Instructions */}
+                <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-4 text-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                      <Phone className="w-4 h-4 text-amber-600" />
+                      Admin Payment Recipient:
+                    </span>
+                    <span className="font-mono font-bold text-sm bg-white border border-amber-300 text-amber-900 px-2.5 py-0.5 rounded-lg">
+                      0775777069
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 text-slate-700">
+                    <p className="font-semibold text-slate-900">Follow these 4 simple steps to subscribe:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-700">
+                      <li>
+                        Open your <strong>{schoolPaymentMethod.replace('_', ' ').toUpperCase()}</strong> menu on your phone (or banking app).
+                      </li>
+                      <li>
+                        Send exactly <strong className="text-emerald-800">K{selectedSchoolTier === 'premium' ? 450 : 400}</strong> to Admin Number <strong className="font-mono text-slate-900">0775777069</strong> (Mwilu Joash / SchoolLink Admin).
+                      </li>
+                      <li>
+                        Copy or note down the <strong>Transaction ID / Reference Code</strong> from the confirmation SMS.
+                      </li>
+                      <li>
+                        Fill in your sender phone number and SMS reference below, then click <strong className="text-emerald-700">“I Have Paid”</strong>.
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+
+                {paymentFormError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{paymentFormError}</span>
+                  </div>
+                )}
+
+                {/* Form Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Sender Mobile Money Number <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800"
+                      placeholder="e.g. 0775777069 or +260 977..."
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>
-                  <button
-                    onClick={handleSchoolSubmit}
-                    disabled={isProcessing}
-                    className="w-full sm:w-auto mt-4 sm:mt-0 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Activating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        <span>Pay & Activate K{selectedSchoolTier === 'premium' ? 450 : 400}/mo</span>
-                      </>
-                    )}
-                  </button>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      SMS Transaction ID / Reference Code <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={schoolPaymentRef}
+                      onChange={(e) => setSchoolPaymentRef(e.target.value)}
+                      placeholder="e.g. MP2609771234 or TXN-849102"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 uppercase"
+                    />
+                  </div>
                 </div>
+
+                {/* "I Have Paid" Action Button */}
+                <button
+                  type="button"
+                  onClick={handleSchoolHavePaid}
+                  disabled={isProcessing}
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Submitting Request to Admin Queue...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      <span>I Have Paid (Submit K{selectedSchoolTier === 'premium' ? 450 : 400} for Verification)</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-center text-slate-500">
+                  Your request enters the Admin verification desk (0775777069). Plan features unlock immediately once approved.
+                </p>
               </div>
             </div>
           ) : (
@@ -583,61 +831,129 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 </div>
               </div>
 
-              {/* Payment Method Selection */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
-                  Zambian Payment Channel
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              {/* Parent Payment Method & Manual Transfer Instructions */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Select Payment Method
+                  </h4>
+                  <span className="text-[11px] font-semibold text-teal-800 bg-teal-100 px-2.5 py-0.5 rounded-full">
+                    Manual Verification Workflow
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'airtel_money', label: 'Airtel Money', color: 'text-red-600' },
-                    { id: 'mtn_money', label: 'MTN MoMo', color: 'text-yellow-600' },
-                    { id: 'zamtel_money', label: 'Zamtel Kwacha', color: 'text-emerald-600' },
-                    { id: 'card_visa_mastercard', label: 'Visa / Mastercard', color: 'text-blue-600' }
+                    { id: 'airtel_money', label: 'Airtel Money', color: 'text-red-600', code: '*115#' },
+                    { id: 'mtn_money', label: 'MTN MoMo', color: 'text-yellow-600', code: '*303#' },
+                    { id: 'zamtel_money', label: 'Zamtel Kwacha', color: 'text-emerald-600', code: '*115#' },
+                    { id: 'card_visa_mastercard', label: 'Visa / Mastercard', color: 'text-blue-600', code: 'Bank Transfer' }
                   ].map((m) => (
                     <button
                       key={m.id}
                       type="button"
                       onClick={() => setParentPaymentMethod(m.id as SubscriptionPaymentMethod)}
-                      className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center text-center ${
+                      className={`p-3 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center text-center gap-0.5 cursor-pointer ${
                         parentPaymentMethod === m.id
-                          ? 'border-teal-600 bg-white shadow-sm ring-1 ring-teal-500'
-                          : 'border-slate-200 bg-white/60 hover:bg-white text-slate-700'
+                          ? 'border-teal-600 bg-white shadow-sm ring-2 ring-teal-500/20'
+                          : 'border-slate-200 bg-white/70 hover:bg-white text-slate-700'
                       }`}
                     >
                       <span className={m.color}>{m.label}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{m.code}</span>
                     </button>
                   ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="flex-1 w-full">
-                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">Mobile Money / WhatsApp Number</label>
+                {/* Step-by-Step Parent Payment Instructions */}
+                <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-4 text-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                      <Phone className="w-4 h-4 text-amber-600" />
+                      Admin Payment Recipient:
+                    </span>
+                    <span className="font-mono font-bold text-sm bg-white border border-amber-300 text-amber-900 px-2.5 py-0.5 rounded-lg">
+                      0775777069
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 text-slate-700">
+                    <p className="font-semibold text-slate-900">Follow these 4 simple steps to subscribe:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-700">
+                      <li>
+                        Open your <strong>{parentPaymentMethod.replace('_', ' ').toUpperCase()}</strong> menu on your phone.
+                      </li>
+                      <li>
+                        Send exactly <strong className="text-teal-800">K{selectedParentTier === 'premium' ? 200 : 150}</strong> to Admin Number <strong className="font-mono text-slate-900">0775777069</strong> (Mwilu Joash / SchoolLink Admin).
+                      </li>
+                      <li>
+                        Copy or note down the <strong>Transaction ID / Reference Code</strong> from the confirmation SMS.
+                      </li>
+                      <li>
+                        Fill in your sender phone number and SMS reference below, then click <strong className="text-teal-700">“I Have Paid”</strong>.
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+
+                {paymentFormError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{paymentFormError}</span>
+                  </div>
+                )}
+
+                {/* Form Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Sender Mobile Money Number <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-800"
+                      placeholder="e.g. 0775777069 or +260 977..."
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 outline-hidden focus:border-teal-600 focus:ring-1 focus:ring-teal-500"
                     />
                   </div>
-                  <button
-                    onClick={handleParentSubmit}
-                    disabled={isProcessing}
-                    className="w-full sm:w-auto mt-4 sm:mt-0 bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Activating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        <span>Pay & Activate K{selectedParentTier === 'premium' ? 200 : 150}/mo</span>
-                      </>
-                    )}
-                  </button>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      SMS Transaction ID / Reference Code <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={parentPaymentRef}
+                      onChange={(e) => setParentPaymentRef(e.target.value)}
+                      placeholder="e.g. MP2609771234 or TXN-849102"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 outline-hidden focus:border-teal-600 focus:ring-1 focus:ring-teal-500 uppercase"
+                    />
+                  </div>
                 </div>
+
+                {/* "I Have Paid" Action Button */}
+                <button
+                  type="button"
+                  onClick={handleParentHavePaid}
+                  disabled={isProcessing}
+                  className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Submitting Request to Admin Queue...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      <span>I Have Paid (Submit K{selectedParentTier === 'premium' ? 200 : 150} for Verification)</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-center text-slate-500">
+                  Your request enters the Admin verification desk (0775777069). Plan features unlock immediately once approved.
+                </p>
               </div>
             </div>
           )}

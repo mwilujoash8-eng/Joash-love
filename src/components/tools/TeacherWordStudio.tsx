@@ -33,6 +33,7 @@ import {
   ZoomOut
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
+import { draftDocument } from '../../services/apiClient';
 
 interface TeacherWordStudioProps {
   initialTemplate?: 'lesson_plan' | 'exam_paper' | 'scheme_of_work' | 'parent_letter';
@@ -207,20 +208,15 @@ export const TeacherWordStudio: React.FC<TeacherWordStudioProps> = ({ initialTem
   const handleGenerateAiDocument = async () => {
     setIsAiDrafting(true);
     try {
-      const res = await fetch('/api/ai/draft-document', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          docType: aiDraftType,
-          title: documentTitle,
-          subject: aiSubject,
-          grade: aiGrade,
-          topic: aiTopic,
-          objectives: aiObjectives,
-          schoolName: currentSchool.name,
-        }),
+      const data = await draftDocument({
+        docType: aiDraftType,
+        title: documentTitle,
+        subject: aiSubject,
+        grade: aiGrade,
+        topic: aiTopic,
+        objectives: aiObjectives,
+        schoolName: currentSchool.name,
       });
-      const data = await res.json();
       if (data.content) {
         // Format text into HTML paragraphs
         const formattedHtml = `

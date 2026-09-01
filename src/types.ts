@@ -47,6 +47,43 @@ export interface ParentSubscription {
   features: string[];
 }
 
+export interface SubscriptionActivationKey {
+  id: string;
+  code: string; // e.g. "SCH-ACT-8F3K9A" or "PAR-ACT-7N2Q1X"
+  targetType: 'school' | 'parent';
+  targetId: string; // schoolId or userId
+  targetName: string; // School name or Parent Full Name
+  tier: 'medium' | 'premium';
+  billingCycle: 'monthly' | 'annually';
+  priceZMW: number;
+  status: 'active_unused' | 'redeemed' | 'revoked';
+  generatedBy: string; // "mwilujoash8@gmail.com"
+  createdAt: string;
+  redeemedAt?: string;
+  redeemedBy?: string;
+  notes?: string;
+}
+
+export interface PendingSubscriptionRequest {
+  id: string;
+  targetType: 'school' | 'parent';
+  targetId: string;
+  targetName: string;
+  requesterId?: string;
+  requesterName: string;
+  requesterContact?: string;
+  requesterEmail?: string;
+  requesterPhone?: string;
+  requestedTier: 'medium' | 'premium';
+  billingCycle?: 'monthly' | 'annually';
+  priceZMW: number;
+  paymentMethod: SubscriptionPaymentMethod;
+  paymentReference: string;
+  requestDate: string;
+  status: 'pending_review' | 'approved' | 'rejected';
+  notes?: string;
+}
+
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 
 export type AssessmentType =

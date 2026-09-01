@@ -16,7 +16,9 @@ import {
   StoryItem,
   SchoolGroup,
   GroupPost,
-  FinancePublication
+  FinancePublication,
+  SubscriptionActivationKey,
+  PendingSubscriptionRequest
 } from './types';
 
 export const ECZ_GRADING_SCALE: GradeBoundary[] = [
@@ -653,8 +655,8 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'user_platform_admin',
-    fullName: 'Dr. Kasongo Chileshe',
-    email: 'admin@schoollink.edu.zm',
+    fullName: 'Mwilu Joash',
+    email: 'mwilujoash8@gmail.com',
     password: 'password123',
     role: 'platform_admin',
     userCategory: 'platform_admin',
@@ -2478,6 +2480,89 @@ export const INITIAL_CANTEEN_WALLETS: Record<string, CanteenWallet> = {
     ]
   }
 };
+
+export const INITIAL_ACTIVATION_KEYS: SubscriptionActivationKey[] = [
+  {
+    id: 'key_001',
+    code: 'SCH-PREM-8F3K9A',
+    targetType: 'school',
+    targetId: 'school_kabwe_tech',
+    targetName: 'Kabwe National Technical High School',
+    tier: 'premium',
+    billingCycle: 'monthly',
+    priceZMW: 450,
+    status: 'redeemed',
+    generatedBy: 'mwilujoash8@gmail.com',
+    createdAt: '2026-02-01',
+    redeemedAt: '2026-02-01',
+    redeemedBy: 'Dr. Mwamba Kangwa (Head Teacher)',
+    notes: 'Approved institutional license covering all 14 faculty members'
+  },
+  {
+    id: 'key_002',
+    code: 'PAR-PREM-7N2Q1X',
+    targetType: 'parent',
+    targetId: 'user_parent_01',
+    targetName: 'Mr. & Mrs. Mwila (Chileshe Mwila Parent)',
+    tier: 'premium',
+    billingCycle: 'monthly',
+    priceZMW: 200,
+    status: 'redeemed',
+    generatedBy: 'mwilujoash8@gmail.com',
+    createdAt: '2026-02-05',
+    redeemedAt: '2026-02-05',
+    redeemedBy: 'Mr. & Mrs. Mwila',
+    notes: 'Airtel Money payment ref AM-2026-89410'
+  },
+  {
+    id: 'key_003',
+    code: 'SCH-MED-5X9T4L',
+    targetType: 'school',
+    targetId: 'school_lusaka_apex',
+    targetName: 'Lusaka Apex Secondary School',
+    tier: 'medium',
+    billingCycle: 'monthly',
+    priceZMW: 400,
+    status: 'active_unused',
+    generatedBy: 'mwilujoash8@gmail.com',
+    createdAt: '2026-02-28',
+    notes: 'Issued by Admin for new term activation'
+  }
+];
+
+export const INITIAL_SUBSCRIPTION_REQUESTS: PendingSubscriptionRequest[] = [
+  {
+    id: 'req_001',
+    targetType: 'school',
+    targetId: 'school_ndola_girls',
+    targetName: 'Ndola Girls National Technical School',
+    requesterName: 'Mrs. Bupe Tembo (Head Teacher)',
+    requesterContact: '+260 977 441199',
+    requestedTier: 'premium',
+    priceZMW: 450,
+    paymentMethod: 'airtel_money',
+    paymentReference: 'AIRTEL-MM-99201488',
+    requestDate: '2026-02-28',
+    status: 'pending_review',
+    notes: 'Requesting Premium plan activation for Term 1 faculty analytics'
+  },
+  {
+    id: 'req_002',
+    targetType: 'parent',
+    targetId: 'user_parent_02',
+    targetName: 'Mrs. Chileshe Phiri',
+    requesterName: 'Mrs. Chileshe Phiri',
+    requesterContact: '+260 966 882211',
+    requestedTier: 'premium',
+    priceZMW: 200,
+    paymentMethod: 'airtel_money',
+    paymentReference: 'AIRTEL-MM-77319022',
+    requestDate: '2026-03-01',
+    status: 'pending_review',
+    notes: 'Parent paid via Airtel Money for student STU-2026-0044'
+  }
+];
+
 
 
 

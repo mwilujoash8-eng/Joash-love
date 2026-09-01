@@ -26,7 +26,10 @@ import {
   ChevronRight,
   TrendingUp,
   Zap,
-  Lock
+  Lock,
+  Video,
+  UserCheck,
+  MessageSquare
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import {
@@ -35,23 +38,33 @@ import {
   UserCategory,
   SchoolStaffSubscriptionTier,
   ParentSubscriptionTier,
-  AuditLog
+  AuditLog,
+  SubscriptionActivationKey,
+  PendingSubscriptionRequest
 } from '../../types';
 import { SubscriptionModal } from '../modals/SubscriptionModal';
 
 interface PlatformAdminDashboardProps {
   onOpenCreateSchool: () => void;
   onOpenProfile: () => void;
+  onOpenGoogleMeet?: () => void;
 }
 
 export const PlatformAdminDashboard: React.FC<PlatformAdminDashboardProps> = ({
   onOpenCreateSchool,
   onOpenProfile,
+  onOpenGoogleMeet,
 }) => {
   const {
     schools,
     allUsers,
     auditLogs,
+    activationKeys,
+    pendingSubRequests,
+    generateActivationKey,
+    approveSubscriptionRequest,
+    rejectSubscriptionRequest,
+    revokeActivationKey,
     updateSchoolSubscription,
     updateParentSubscription,
     approveUser,
@@ -59,12 +72,30 @@ export const PlatformAdminDashboard: React.FC<PlatformAdminDashboardProps> = ({
     switchSchool,
   } = useSchool();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'schools' | 'parents' | 'users' | 'security'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'approvals' | 'search_people' | 'keys' | 'schools' | 'parents' | 'users' | 'meet' | 'security'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedSchoolForDetails, setSelectedSchoolForDetails] = useState<School | null>(null);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [subModalMode, setSubModalMode] = useState<'school' | 'parent'>('school');
+
+  // Approval desk search & filter state
+  const [approvalSearch, setApprovalSearch] = useState('');
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState<'all' | 'pending_review' | 'approved' | 'rejected'>('all');
+
+  // Dedicated People search state
+  const [peopleSearch, setPeopleSearch] = useState('');
+  const [peopleRoleFilter, setPeopleRoleFilter] = useState<string>('all');
+  const [peopleVerificationFilter, setPeopleVerificationFilter] = useState<string>('all');
+
+  // Key generation form state
+  const [keyTargetType, setKeyTargetType] = useState<'school' | 'parent'>('school');
+  const [keyTargetId, setKeyTargetId] = useState<string>(schools[0]?.id || '');
+  const [keyTier, setKeyTier] = useState<'medium' | 'premium'>('premium');
+  const [keyNotes, setKeyNotes] = useState('');
+  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<SubscriptionActivationKey | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [keyFilterStatus, setKeyFilterStatus] = useState<'all' | 'active_unused' | 'redeemed' | 'revoked'>('all');
 
   // Metrics calculation
   const totalSchools = schools.length;
@@ -87,14 +118,40 @@ export const PlatformAdminDashboard: React.FC<PlatformAdminDashboardProps> = ({
 
   const totalMonthlyRevenue = schoolRevenue + parentRevenue;
 
-  // Filtered users
+  // Filtered users with robust Zambian phone number & multi-field normalization
+  const cleanDigits = (str?: string) => (str ? str.replace(/[^0-9]/g, '') : '');
+  const searchDigits = cleanDigits(searchQuery);
+
   const filteredUsers = allUsers.filter((u) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      const matchesCategory =
+        categoryFilter === 'all' ||
+        u.userCategory === categoryFilter ||
+        (categoryFilter === 'school_staff' && (u.role === 'head_teacher' || u.role === 'deputy_head_teacher' || u.role === 'teacher')) ||
+        (categoryFilter === 'parent' && u.role === 'parent') ||
+        (categoryFilter === 'student' && u.role === 'student') ||
+        (categoryFilter === 'platform_admin' && u.role === 'platform_admin');
+      return matchesCategory;
+    }
+
+    const uPhoneDigits = cleanDigits(u.phone);
+    const uWhatsAppDigits = cleanDigits(u.whatsAppNumber);
+
+    const matchesPhoneDigits =
+      searchDigits.length >= 3 &&
+      ((uPhoneDigits && (uPhoneDigits.includes(searchDigits) || searchDigits.includes(uPhoneDigits))) ||
+        (uWhatsAppDigits && (uWhatsAppDigits.includes(searchDigits) || searchDigits.includes(uWhatsAppDigits))));
+
     const matchesSearch =
-      u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.whatsAppNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.schoolName?.toLowerCase().includes(searchQuery.toLowerCase());
+      u.fullName.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.id.toLowerCase().includes(q) ||
+      (u.schoolId && u.schoolId.toLowerCase().includes(q)) ||
+      (u.schoolName && u.schoolName.toLowerCase().includes(q)) ||
+      (u.studentProfile?.studentNumber && u.studentProfile.studentNumber.toLowerCase().includes(q)) ||
+      (u.parentProfile?.connectedStudentNumbers?.some((num) => num.toLowerCase().includes(q))) ||
+      matchesPhoneDigits;
 
     const matchesCategory =
       categoryFilter === 'all' ||
@@ -134,24 +191,44 @@ export const PlatformAdminDashboard: React.FC<PlatformAdminDashboardProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
-              onClick={onOpenCreateSchool}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition shadow-lg shadow-emerald-600/30 hover:scale-105 active:scale-95"
+              onClick={() => setActiveTab('approvals')}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg shadow-amber-600/30 hover:scale-105 active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>Register & License New School</span>
+              <CreditCard className="w-4 h-4" />
+              <span>Approvals Queue</span>
+              {pendingSubRequests.filter((r) => r.status === 'pending_review').length > 0 && (
+                <span className="bg-white text-amber-900 text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                  {pendingSubRequests.filter((r) => r.status === 'pending_review').length}
+                </span>
+              )}
             </button>
 
             <button
-              onClick={() => {
-                setSubModalMode('school');
-                setIsSubModalOpen(true);
-              }}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition shadow-lg shadow-indigo-600/30 hover:scale-105 active:scale-95"
+              onClick={() => setActiveTab('search_people')}
+              className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition border border-slate-700 hover:scale-105 active:scale-95"
             >
-              <CreditCard className="w-4 h-4" />
-              <span>Subscription Pricing Desk</span>
+              <Search className="w-4 h-4 text-emerald-400" />
+              <span>Search People</span>
+            </button>
+
+            {onOpenGoogleMeet && (
+              <button
+                onClick={onOpenGoogleMeet}
+                className="bg-teal-600 hover:bg-teal-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg shadow-teal-600/30 hover:scale-105 active:scale-95"
+              >
+                <Video className="w-4 h-4" />
+                <span>Google Meet</span>
+              </button>
+            )}
+
+            <button
+              onClick={onOpenCreateSchool}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg shadow-emerald-600/30 hover:scale-105 active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New School</span>
             </button>
           </div>
         </div>
@@ -277,15 +354,19 @@ export const PlatformAdminDashboard: React.FC<PlatformAdminDashboardProps> = ({
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
         {[
           { id: 'overview', label: 'Platform Summary', icon: <Activity className="w-4 h-4" /> },
+          { id: 'approvals', label: 'Subscription Approvals Desk', icon: <CreditCard className="w-4 h-4" />, badge: pendingSubRequests.filter((r) => r.status === 'pending_review').length },
+          { id: 'search_people', label: 'Search People & Database', icon: <Search className="w-4 h-4" /> },
+          { id: 'meet', label: 'Google Meet Video Calls', icon: <Video className="w-4 h-4" /> },
           { id: 'schools', label: 'School Licenses & Subscriptions', icon: <Building className="w-4 h-4" /> },
           { id: 'parents', label: 'Parent Accounts & Subscriptions', icon: <Users className="w-4 h-4" /> },
-          { id: 'users', label: 'Global User Directory (4 Categories)', icon: <Users className="w-4 h-4" /> },
-          { id: 'security', label: 'National Audit & Security Ledger', icon: <Shield className="w-4 h-4" /> },
+          { id: 'keys', label: 'Single-Use Keys & Vouchers', icon: <KeyRound className="w-4 h-4" /> },
+          { id: 'users', label: 'All Users (4 Categories)', icon: <Users className="w-4 h-4" /> },
+          { id: 'security', label: 'National Audit Ledger', icon: <Shield className="w-4 h-4" /> },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition relative ${
               activeTab === tab.id
                 ? 'bg-slate-900 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -293,11 +374,895 @@ export const PlatformAdminDashboard: React.FC<PlatformAdminDashboardProps> = ({
           >
             {tab.icon}
             <span>{tab.label}</span>
+            {tab.badge !== undefined && tab.badge > 0 && (
+              <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* TAB 1: OVERVIEW */}
+      {/* TAB 1: DEDICATED SUBSCRIPTION APPROVALS & DATABASE QUEUE */}
+      {activeTab === 'approvals' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-200 bg-gradient-to-r from-amber-50/70 via-white to-emerald-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-2 bg-amber-500/20 text-amber-900 rounded-xl">
+                    <CreditCard className="w-5 h-5 text-amber-700" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      National Subscription Payment Approval Desk
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Live queue of incoming Airtel Money, MTN MoMo, Zamtel, and Bank transfer verification requests submitted by School Heads and Parents.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Counters */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-mono font-bold bg-amber-100 text-amber-900 px-3 py-1.5 rounded-xl border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                  {pendingSubRequests.filter((r) => r.status === 'pending_review').length} Pending
+                </span>
+                <span className="text-xs font-mono font-bold bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-xl border border-emerald-300">
+                  {pendingSubRequests.filter((r) => r.status === 'approved').length} Confirmed
+                </span>
+              </div>
+            </div>
+
+            {/* Search and Filters Bar */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search reference, applicant, phone..."
+                  value={approvalSearch}
+                  onChange={(e) => setApprovalSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-emerald-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs text-slate-500 font-semibold shrink-0">Filter Status:</span>
+                <div className="flex items-center bg-white border border-slate-300 rounded-xl p-0.5 text-xs">
+                  {(['all', 'pending_review', 'approved', 'rejected'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setApprovalStatusFilter(st)}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition capitalize ${
+                        approvalStatusFilter === st
+                          ? 'bg-slate-900 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {st === 'pending_review' ? 'Pending' : st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Table of requests */}
+            {(() => {
+              const q = approvalSearch.toLowerCase().trim();
+              const requests = pendingSubRequests.filter((r) => {
+                const matchesStatus = approvalStatusFilter === 'all' || r.status === approvalStatusFilter;
+                const matchesQ =
+                  !q ||
+                  r.requesterName.toLowerCase().includes(q) ||
+                  r.requesterPhone.toLowerCase().includes(q) ||
+                  r.requesterEmail.toLowerCase().includes(q) ||
+                  r.paymentReference.toLowerCase().includes(q) ||
+                  r.targetName.toLowerCase().includes(q) ||
+                  r.paymentMethod.toLowerCase().includes(q);
+                return matchesStatus && matchesQ;
+              });
+
+              if (requests.length === 0) {
+                return (
+                  <div className="p-12 text-center text-slate-500 space-y-2">
+                    <CreditCard className="w-8 h-8 text-slate-400 mx-auto opacity-50" />
+                    <p className="text-sm font-bold text-slate-700">No subscription requests match your criteria</p>
+                    <p className="text-xs text-slate-400">When users submit mobile money transactions, they appear in this approval desk.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100/80 border-b border-slate-200 text-slate-600">
+                      <tr>
+                        <th className="p-4 font-semibold">Applicant & Contact</th>
+                        <th className="p-4 font-semibold">Target Entity</th>
+                        <th className="p-4 font-semibold">Requested Plan</th>
+                        <th className="p-4 font-semibold">Payment Channel & Ref</th>
+                        <th className="p-4 font-semibold">Date Submitted</th>
+                        <th className="p-4 font-semibold">Status</th>
+                        <th className="p-4 font-semibold text-right">Admin Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {requests.map((req) => (
+                        <tr key={req.id} className="hover:bg-slate-50 transition">
+                          <td className="p-4">
+                            <p className="font-bold text-slate-900">{req.requesterName}</p>
+                            <p className="text-slate-500 font-mono text-[11px]">{req.requesterEmail}</p>
+                            <p className="text-emerald-700 font-mono text-[11px] font-bold">{req.requesterPhone}</p>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-1.5">
+                              {req.targetType === 'school' ? (
+                                <Building className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              ) : (
+                                <Users className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                              )}
+                              <span className="font-bold text-slate-800">{req.targetName}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono capitalize">{req.targetType} Account</span>
+                          </td>
+                          <td className="p-4">
+                            <span className="inline-block font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded uppercase border border-slate-200">
+                              {req.requestedTier} &bull; K{req.priceZMW}/mo
+                            </span>
+                          </td>
+                          <td className="p-4 font-mono text-[11px]">
+                            <div className="font-bold text-slate-800 uppercase flex items-center gap-1">
+                              <span>{req.paymentMethod.replace('_', ' ')}</span>
+                            </div>
+                            <div className="text-amber-900 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block mt-0.5 select-all">
+                              Ref: {req.paymentReference}
+                            </div>
+                            {req.notes && (
+                              <p className="text-[10px] font-sans text-slate-500 mt-1 italic">{req.notes}</p>
+                            )}
+                          </td>
+                          <td className="p-4 text-slate-600 font-mono text-[11px]">
+                            {req.requestDate}
+                          </td>
+                          <td className="p-4">
+                            <span
+                              className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                                req.status === 'approved'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : req.status === 'rejected'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                  : 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                              }`}
+                            >
+                              {req.status === 'pending_review' ? 'Pending Approval' : req.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">
+                            {req.status === 'pending_review' ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => approveSubscriptionRequest(req.id)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                                  title="Confirm payment received and activate subscription"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Confirm & Approve</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => rejectSubscriptionRequest(req.id)}
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                                  title="Reject request with audit trail"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] font-medium italic">Decision Recorded</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: ADVANCED NATIONAL PEOPLE & DATABASE SEARCH */}
+      {activeTab === 'search_people' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                    <Search className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      National Educational Directory & People Search
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Instant query lookup across teachers, head teachers, parents, students, board members, and school administrators nationwide.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-slate-500 font-mono">
+                Total Users: <strong className="text-slate-900">{allUsers.length}</strong> &bull; Total Schools: <strong className="text-slate-900">{schools.length}</strong>
+              </div>
+            </div>
+
+            {/* Search Input and Role Filter Chips */}
+            <div className="mt-5 space-y-4">
+              <div className="relative">
+                <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by Name, Zambian Phone (e.g. 097..., +260...), WhatsApp, Student ID, NRC, School Name, or Email..."
+                  value={peopleSearch}
+                  onChange={(e) => setPeopleSearch(e.target.value)}
+                  className="w-full pl-12 pr-10 py-3 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:outline-emerald-500 focus:bg-white shadow-2xs font-medium"
+                />
+                {peopleSearch && (
+                  <button
+                    onClick={() => setPeopleSearch('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Role filter buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs font-bold text-slate-600 mr-1">Role:</span>
+                {[
+                  { id: 'all', label: 'All People', count: allUsers.length },
+                  { id: 'head_teacher', label: 'Head Teachers', count: allUsers.filter((u) => u.role === 'head_teacher').length },
+                  { id: 'deputy_head_teacher', label: 'Deputy Heads', count: allUsers.filter((u) => u.role === 'deputy_head_teacher').length },
+                  { id: 'teacher', label: 'Teachers', count: allUsers.filter((u) => u.role === 'teacher').length },
+                  { id: 'parent', label: 'Parents', count: allUsers.filter((u) => u.role === 'parent').length },
+                  { id: 'student', label: 'Students', count: allUsers.filter((u) => u.role === 'student').length },
+                  { id: 'school_board', label: 'Board Members', count: allUsers.filter((u) => u.role === 'school_board').length },
+                  { id: 'platform_admin', label: 'Administrators', count: allUsers.filter((u) => u.role === 'platform_admin').length },
+                ].map((rf) => (
+                  <button
+                    key={rf.id}
+                    onClick={() => setPeopleRoleFilter(rf.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      peopleRoleFilter === rf.id
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{rf.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      peopleRoleFilter === rf.id ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {rf.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Results Grid */}
+          {(() => {
+            const cleanDigits = (str?: string) => (str ? str.replace(/[^0-9]/g, '') : '');
+            const q = peopleSearch.toLowerCase().trim();
+            const qDigits = cleanDigits(q);
+
+            const filteredPeople = allUsers.filter((u) => {
+              const matchesRole = peopleRoleFilter === 'all' || u.role === peopleRoleFilter;
+              if (!matchesRole) return false;
+              if (!q) return true;
+
+              const uPhoneDigits = cleanDigits(u.phone);
+              const uWADigits = cleanDigits(u.whatsAppNumber);
+              const matchesPhone =
+                qDigits.length >= 3 &&
+                ((uPhoneDigits && (uPhoneDigits.includes(qDigits) || qDigits.includes(uPhoneDigits))) ||
+                  (uWADigits && (uWADigits.includes(qDigits) || qDigits.includes(uWADigits))));
+
+              return (
+                u.fullName.toLowerCase().includes(q) ||
+                u.email.toLowerCase().includes(q) ||
+                u.id.toLowerCase().includes(q) ||
+                (u.schoolId && u.schoolId.toLowerCase().includes(q)) ||
+                (u.schoolName && u.schoolName.toLowerCase().includes(q)) ||
+                (u.studentProfile?.studentNumber && u.studentProfile.studentNumber.toLowerCase().includes(q)) ||
+                (u.studentProfile?.className && u.studentProfile.className.toLowerCase().includes(q)) ||
+                (u.parentProfile?.connectedStudentNumbers?.some((num) => num.toLowerCase().includes(q))) ||
+                (u.teacherProfile?.specialization && u.teacherProfile.specialization.toLowerCase().includes(q)) ||
+                matchesPhone
+              );
+            });
+
+            if (filteredPeople.length === 0) {
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 space-y-2">
+                  <Users className="w-8 h-8 text-slate-400 mx-auto opacity-50" />
+                  <p className="text-base font-bold text-slate-800">No people found matching "{peopleSearch}"</p>
+                  <p className="text-xs text-slate-400">Try searching with a partial name, phone number (e.g. 0977...), or student number.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredPeople.map((person) => {
+                  const targetSchool = schools.find((s) => s.id === person.schoolId);
+                  const isVerified = person.verificationStatus === 'verified';
+
+                  return (
+                    <div
+                      key={person.id}
+                      className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-md transition space-y-4 flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <img
+                              src={person.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'}
+                              alt={person.fullName}
+                              className="w-11 h-11 rounded-full object-cover border-2 border-emerald-500/40 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-slate-900 truncate">
+                                {person.fullName}
+                              </h4>
+                              <p className="text-[11px] text-slate-500 font-mono truncate">{person.email}</p>
+                            </div>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wider shrink-0 ${
+                              isVerified
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            {isVerified ? 'Verified' : 'Pending'}
+                          </span>
+                        </div>
+
+                        {/* Role & School */}
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="font-semibold text-slate-400">Role:</span>
+                            <span className="font-bold text-slate-800 capitalize bg-slate-100 px-2 py-0.5 rounded">
+                              {person.role.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="font-semibold text-slate-400">School:</span>
+                            <span className="font-medium text-slate-800 truncate max-w-[170px]">
+                              {person.schoolName || targetSchool?.name || 'National Admin Desk'}
+                            </span>
+                          </div>
+                          {person.phone && (
+                            <div className="flex items-center justify-between text-slate-600">
+                              <span className="font-semibold text-slate-400">Phone:</span>
+                              <span className="font-mono font-bold text-emerald-700">{person.phone}</span>
+                            </div>
+                          )}
+                          {person.studentProfile && (
+                            <div className="flex items-center justify-between text-slate-600">
+                              <span className="font-semibold text-slate-400">Student No:</span>
+                              <span className="font-mono font-bold text-slate-800">{person.studentProfile.studentNumber}</span>
+                            </div>
+                          )}
+                          {person.parentProfile && person.parentProfile.connectedStudentNumbers?.length > 0 && (
+                            <div className="flex items-center justify-between text-slate-600">
+                              <span className="font-semibold text-slate-400">Children:</span>
+                              <span className="font-mono text-[11px] text-slate-800">{person.parentProfile.connectedStudentNumbers.join(', ')}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quick Actions */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                        {onOpenGoogleMeet && (
+                          <button
+                            type="button"
+                            onClick={onOpenGoogleMeet}
+                            className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                            title="Start Google Meet with this person"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span>Meet</span>
+                          </button>
+                        )}
+                        {!isVerified && (
+                          <button
+                            type="button"
+                            onClick={() => approveUser(person.id)}
+                            className="flex-1 py-1.5 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Verify</span>
+                          </button>
+                        )}
+                        {person.role === 'parent' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const isPrem = person.parentSubscription?.tier === 'premium';
+                              updateParentSubscription(person.id, isPrem ? 'medium' : 'premium', 'monthly', 'airtel_money');
+                            }}
+                            className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition"
+                            title="Toggle Parent Subscription Tier"
+                          >
+                            {person.parentSubscription?.tier === 'premium' ? 'Plan: Premium' : 'Plan: Medium'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* TAB 3: GOOGLE MEET VIDEO CONFERENCING & VIRTUAL CLASSROOMS */}
+      {activeTab === 'meet' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="bg-gradient-to-r from-emerald-800 to-teal-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-3 max-w-xl">
+              <div className="inline-flex items-center gap-2 bg-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-emerald-200 border border-emerald-400/30">
+                <Video className="w-3.5 h-3.5" />
+                Official Google Meet Integration
+              </div>
+              <h3 className="text-2xl font-black">
+                Launch Live Video Conferences & Masterclasses
+              </h3>
+              <p className="text-sm text-emerald-100 leading-relaxed">
+                Connect instantly with School Heads across Zambia, host PTA Board meetings, or deliver national ECZ Exam revision seminars using Google Meet.
+              </p>
+            </div>
+
+            {onOpenGoogleMeet && (
+              <button
+                type="button"
+                onClick={onOpenGoogleMeet}
+                className="px-6 py-3.5 bg-white hover:bg-emerald-50 text-emerald-900 rounded-2xl font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition flex items-center gap-2 shrink-0 cursor-pointer"
+              >
+                <Video className="w-5 h-5 text-emerald-700" />
+                <span>Open Google Meet Studio</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-2">
+              <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-xl w-fit">
+                <Users className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">National Head Teacher Briefing</h4>
+              <p className="text-xs text-slate-500">Scheduled monthly synchronization with school principals regarding ECZ curriculum updates.</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-2">
+              <div className="p-2.5 bg-teal-50 text-teal-700 rounded-xl w-fit">
+                <GraduationCap className="w-5 h-5 text-teal-600" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">ECZ Exam Masterclasses</h4>
+              <p className="text-xs text-slate-500">Live online tutoring sessions in Mathematics, Sciences, and English Language for Grade 7, 9 & 12.</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-2">
+              <div className="p-2.5 bg-amber-50 text-amber-700 rounded-xl w-fit">
+                <Building className="w-5 h-5 text-amber-600" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">School Board Consultation</h4>
+              <p className="text-xs text-slate-500">Encrypted virtual governance meetings with high-definition audio and screen sharing.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: KEYS & AIRTEL MONEY APPROVALS */}
+      {activeTab === 'keys' && (
+        <div className="space-y-6">
+          {/* Section 1: Pending Manual Verification Desk */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-200 bg-gradient-to-r from-amber-50/60 to-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-amber-500/20 text-amber-800 rounded-lg">
+                    <CreditCard className="w-4 h-4 text-amber-700" />
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Airtel Money & Mobile Payment Verification Desk
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Users who make manual Airtel Money, MTN MoMo, or Zamtel transfers submit their transaction reference number here. Review and approve to activate their subscription instantly in the database.
+                </p>
+              </div>
+              <span className="text-xs font-mono font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300 shrink-0">
+                {pendingSubRequests.filter((r) => r.status === 'pending_review').length} Awaiting Approval
+              </span>
+            </div>
+
+            {pendingSubRequests.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-xs">
+                No pending subscription requests found.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                    <tr>
+                      <th className="p-4 font-semibold">Applicant & Contact</th>
+                      <th className="p-4 font-semibold">Target Entity</th>
+                      <th className="p-4 font-semibold">Requested Plan</th>
+                      <th className="p-4 font-semibold">Payment Channel & Ref</th>
+                      <th className="p-4 font-semibold">Date Submitted</th>
+                      <th className="p-4 font-semibold">Status</th>
+                      <th className="p-4 font-semibold text-right">Admin Decision</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {pendingSubRequests.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-50">
+                        <td className="p-4">
+                          <p className="font-bold text-slate-900">{req.requesterName}</p>
+                          <p className="text-slate-500 font-mono text-[11px]">{req.requesterEmail}</p>
+                          <p className="text-emerald-700 font-mono text-[11px]">{req.requesterPhone}</p>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-1.5">
+                            {req.targetType === 'school' ? (
+                              <Building className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            ) : (
+                              <Users className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                            )}
+                            <span className="font-bold text-slate-800">{req.targetName}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono capitalize">{req.targetType} Account</span>
+                        </td>
+                        <td className="p-4">
+                          <span className="font-bold text-slate-900 uppercase">
+                            {req.requestedTier} (K{req.priceZMW}/mo)
+                          </span>
+                        </td>
+                        <td className="p-4 font-mono text-[11px]">
+                          <div className="font-bold text-slate-800 uppercase">{req.paymentMethod.replace('_', ' ')}</div>
+                          <div className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+                            Ref: {req.paymentReference}
+                          </div>
+                          {req.notes && (
+                            <p className="text-[10px] font-sans text-slate-500 mt-1 italic">{req.notes}</p>
+                          )}
+                        </td>
+                        <td className="p-4 text-slate-600 font-mono text-[11px]">
+                          {req.requestDate}
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                              req.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : req.status === 'rejected'
+                                ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                : 'bg-amber-100 text-amber-800 border border-amber-300'
+                            }`}
+                          >
+                            {req.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          {req.status === 'pending_review' ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => approveSubscriptionRequest(req.id)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Approve & Activate</span>
+                              </button>
+                              <button
+                                onClick={() => rejectSubscriptionRequest(req.id)}
+                                className="px-2.5 py-1.5 bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-700 rounded-lg text-xs font-bold transition"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[11px] font-medium">Processed</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Key Generator & Live Database Table */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left 4 Cols: Single-Use Key Generator */}
+            <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                  <KeyRound className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Issue Single-Use Activation Key</h4>
+                  <p className="text-[11px] text-slate-500">Generate authorization codes for schools or parents</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Target Account Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setKeyTargetType('school');
+                        setKeyTargetId(schools[0]?.id || '');
+                      }}
+                      className={`p-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
+                        keyTargetType === 'school'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <Building className="w-3.5 h-3.5" />
+                      <span>School Staff</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setKeyTargetType('parent');
+                        const firstParent = allUsers.find((u) => u.role === 'parent');
+                        setKeyTargetId(firstParent?.id || '');
+                      }}
+                      className={`p-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
+                        keyTargetType === 'parent'
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Parent Account</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Select {keyTargetType === 'school' ? 'Educational Institution' : 'Parent Guardian'}
+                  </label>
+                  <select
+                    value={keyTargetId}
+                    onChange={(e) => setKeyTargetId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-medium outline-hidden"
+                  >
+                    {keyTargetType === 'school'
+                      ? schools.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.code}) - {s.city}
+                          </option>
+                        ))
+                      : allUsers
+                          .filter((u) => u.role === 'parent' || u.userCategory === 'parent')
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.fullName} ({p.phone || p.email})
+                            </option>
+                          ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Subscription Plan Tier</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setKeyTier('medium')}
+                      className={`p-2.5 rounded-xl text-left border transition ${
+                        keyTier === 'medium'
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-1 ring-emerald-500'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">Medium</div>
+                      <div className="text-[11px] font-extrabold text-emerald-700">
+                        {keyTargetType === 'school' ? 'K400 / month' : 'K150 / month'}
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setKeyTier('premium')}
+                      className={`p-2.5 rounded-xl text-left border transition ${
+                        keyTier === 'premium'
+                          ? 'bg-amber-50 border-amber-500 text-amber-950 ring-1 ring-amber-500'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <div className="text-xs font-bold flex items-center gap-1">
+                        <span>Premium</span>
+                        <Sparkles className="w-3 h-3 text-amber-600" />
+                      </div>
+                      <div className="text-[11px] font-extrabold text-amber-700">
+                        {keyTargetType === 'school' ? 'K450 / month' : 'K200 / month'}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Transaction Reference</label>
+                  <input
+                    type="text"
+                    value={keyNotes}
+                    onChange={(e) => setKeyNotes(e.target.value)}
+                    placeholder="e.g. Paid via Airtel Money TXN-998242"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 outline-hidden"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const created = generateActivationKey(keyTargetType, keyTargetId, keyTier, 'monthly', keyNotes);
+                    setNewlyGeneratedKey(created);
+                    setKeyNotes('');
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>Generate Encrypted Activation Key</span>
+                </button>
+
+                {newlyGeneratedKey && (
+                  <div className="mt-4 p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-white space-y-2 animate-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-emerald-300 flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                        Key Generated in Database:
+                      </span>
+                      <span className="text-[10px] bg-emerald-800 text-emerald-200 px-2 py-0.5 rounded font-mono">
+                        Active
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-950 rounded-lg border border-emerald-600/60 font-mono text-center text-base font-black tracking-widest text-emerald-300 select-all">
+                      {newlyGeneratedKey.code}
+                    </div>
+
+                    <p className="text-[11px] text-slate-300">
+                      Target: <strong>{newlyGeneratedKey.targetName}</strong> ({newlyGeneratedKey.tier.toUpperCase()} - K{newlyGeneratedKey.priceZMW}/mo)
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(newlyGeneratedKey.code);
+                        setCopiedKey(true);
+                        setTimeout(() => setCopiedKey(false), 2000);
+                      }}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition flex items-center justify-center gap-1.5"
+                    >
+                      {copiedKey ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      <span>{copiedKey ? 'Code Copied to Clipboard!' : 'Copy Code for SMS / WhatsApp'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right 7 Cols: Issued Keys Database */}
+            <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Database Single-Use Activation Keys</h4>
+                  <p className="text-[11px] text-slate-500">Track key redemption and active licenses</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={keyFilterStatus}
+                    onChange={(e) => setKeyFilterStatus(e.target.value as any)}
+                    className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700 font-semibold"
+                  >
+                    <option value="all">All Statuses ({activationKeys.length})</option>
+                    <option value="active_unused">Active / Unused</option>
+                    <option value="redeemed">Redeemed</option>
+                    <option value="revoked">Revoked</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                    <tr>
+                      <th className="p-3 font-semibold">Activation Code</th>
+                      <th className="p-3 font-semibold">Beneficiary</th>
+                      <th className="p-3 font-semibold">Plan</th>
+                      <th className="p-3 font-semibold">Status</th>
+                      <th className="p-3 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {activationKeys
+                      .filter((k) => keyFilterStatus === 'all' || k.status === keyFilterStatus)
+                      .map((k) => (
+                        <tr key={k.id} className="hover:bg-slate-50">
+                          <td className="p-3 font-mono font-bold text-slate-900 select-all">
+                            {k.code}
+                          </td>
+                          <td className="p-3">
+                            <p className="font-bold text-slate-800 truncate max-w-[140px]">{k.targetName}</p>
+                            <p className="text-[10px] text-slate-400 capitalize">{k.targetType}</p>
+                          </td>
+                          <td className="p-3 font-bold text-slate-800">
+                            <span className="uppercase">{k.tier}</span> (K{k.priceZMW})
+                          </td>
+                          <td className="p-3">
+                            <span
+                              className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded capitalize ${
+                                k.status === 'active_unused'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : k.status === 'redeemed'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                  : 'bg-rose-100 text-rose-800 border border-rose-300'
+                              }`}
+                            >
+                              {k.status === 'active_unused' ? 'Active / Unused' : k.status}
+                            </span>
+                            {k.redeemedAt && (
+                              <p className="text-[10px] text-slate-500 mt-0.5">
+                                Redeemed: {k.redeemedAt}
+                              </p>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(k.code);
+                                }}
+                                className="p-1.5 text-slate-600 hover:text-emerald-700 rounded hover:bg-slate-100"
+                                title="Copy code"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </button>
+                              {k.status === 'active_unused' && (
+                                <button
+                                  onClick={() => revokeActivationKey(k.id)}
+                                  className="px-2 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 rounded"
+                                >
+                                  Revoke
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left 2 Cols: School Subscriptions Overview */}

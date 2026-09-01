@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import { ZoomMeeting } from '../../types';
+import { zoomSubTeacher } from '../../services/apiClient';
 
 interface ZoomMeetingRoomModalProps {
   meeting: ZoomMeeting;
@@ -285,25 +286,20 @@ export const ZoomMeetingRoomModal: React.FC<ZoomMeetingRoomModalProps> = ({ meet
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     try {
-      const response = await fetch('/api/ai/zoom-sub-teacher', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actionType,
-          subject: meeting.subjectName,
-          grade: meeting.grade || 'Grade 9',
-          topic: meeting.topic,
-          userQuery: query,
-          aiModel: currentAiModel,
-          educationMode: currentEducationMode,
-          lessonContext: whiteboardNotes,
-          studentAnswer: extraPayload?.studentAnswer,
-          currentQuestion: extraPayload?.currentQuestion || activeQuiz?.question,
-          questionContext: extraPayload?.questionContext || whiteboardNotes
-        })
+      const data = await zoomSubTeacher({
+        actionType,
+        subject: meeting.subjectName,
+        grade: meeting.grade || 'Grade 9',
+        topic: meeting.topic,
+        userQuery: query,
+        aiModel: currentAiModel,
+        educationMode: currentEducationMode,
+        lessonContext: whiteboardNotes,
+        studentAnswer: extraPayload?.studentAnswer,
+        currentQuestion: extraPayload?.currentQuestion || activeQuiz?.question,
+        questionContext: extraPayload?.questionContext || whiteboardNotes
       });
 
-      const data = await response.json();
       const reply = data.reply || 'Dr. Mwape has updated the blackboard and lesson board.';
       const spoken = data.spokenText || reply.slice(0, 160);
       const notes = data.whiteboardNotes || whiteboardNotes;
@@ -318,7 +314,7 @@ export const ZoomMeetingRoomModal: React.FC<ZoomMeetingRoomModalProps> = ({ meet
           score: data.evaluation.score || '10/10',
           isCorrect: !!data.evaluation.isCorrect,
           feedback: data.evaluation.feedback || reply,
-          badgeAwarded: data.evaluation.badgeAwarded || 'Curriculum Scholar'
+          badgeAwarded: 'Curriculum Scholar'
         });
       }
 
@@ -466,10 +462,10 @@ export const ZoomMeetingRoomModal: React.FC<ZoomMeetingRoomModalProps> = ({ meet
               target="_blank"
               rel="noopener noreferrer"
               className="px-2.5 py-1 bg-[#2D8CFF]/20 hover:bg-[#2D8CFF]/30 text-[#4da2ff] rounded text-xs flex items-center gap-1.5 transition border border-[#2D8CFF]/40"
-              title="Launch in Native Zoom App"
+              title="Launch Zoom Meeting in New Web Window"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Open Zoom App</span>
+              <span className="hidden sm:inline">Open in Web Browser</span>
             </a>
 
             <button

@@ -36,6 +36,7 @@ import { FinancePublishingStudio } from '../finance/FinancePublishingStudio';
 import { ZambianCalendarBanner } from '../common/ZambianCalendarBanner';
 import { GeminiChatbotStudio } from '../tools/GeminiChatbotStudio';
 import { TrendingUp, DollarSign, Layers } from 'lucide-react';
+import { generateRemarks } from '../../services/apiClient';
 
 interface TeacherDashboardProps {
   onViewReportCard: (reportCardId: string) => void;
@@ -202,18 +203,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const handleGenerateAiRemark = async () => {
     setIsAiLoading(true);
     try {
-      const res = await fetch('/api/ai/generate-remarks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentName: aiStudentName,
-          subject: aiSubject,
-          score: aiScore,
-          strengths: 'Analytical reasoning, consistent homework completion',
-          growthAreas: 'Speed during timed tests, complex geometry diagrams',
-        }),
+      const data = await generateRemarks({
+        studentName: aiStudentName,
+        subject: aiSubject,
+        score: aiScore,
+        strengths: 'Analytical reasoning, consistent homework completion',
+        growthAreas: 'Speed during timed tests, complex geometry diagrams',
       });
-      const data = await res.json();
       setAiRemarksOutput(data.remarks || '');
     } catch (err) {
       console.error(err);
@@ -596,7 +592,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             <div>
               <h3 className="text-sm font-bold text-slate-900">Class Attendance Roll Call</h3>
               <p className="text-xs text-slate-500">
-                Mark daily attendance. Parents receive automatic SMS/In-app alerts when a student is marked Absent.
+                Mark daily attendance. Parents receive automatic SMS and Web portal alerts when a student is marked Absent.
               </p>
             </div>
 

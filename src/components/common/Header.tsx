@@ -19,7 +19,10 @@ import {
   ExternalLink,
   LogOut,
   KeyRound,
-  Sparkles
+  Sparkles,
+  Video,
+  Grid,
+  Globe
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import { UserRole } from '../../types';
@@ -31,6 +34,11 @@ interface HeaderProps {
   onOpenRoleSwitcher?: () => void;
   onOpenProfile?: () => void;
   onOpenGeminiAI?: () => void;
+  onOpenDailyCodeModal?: () => void;
+  onOpenGoogleClassroom?: () => void;
+  onOpenGoogleMeet?: () => void;
+  onOpenSchoolModules?: () => void;
+  onViewWebsite?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,6 +48,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRoleSwitcher,
   onOpenProfile,
   onOpenGeminiAI,
+  onOpenDailyCodeModal,
+  onOpenGoogleClassroom,
+  onOpenGoogleMeet,
+  onOpenSchoolModules,
+  onViewWebsite,
 }) => {
   const {
     schools,
@@ -96,6 +109,43 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {onOpenGoogleMeet && (
+            <>
+              <button
+                onClick={onOpenGoogleMeet}
+                className="text-emerald-300 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-0.5 rounded border border-emerald-500/30 transition flex items-center gap-1.5 text-[11px] font-bold cursor-pointer"
+                title="Google Meet Video Conferencing"
+              >
+                <Video className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Google Meet</span>
+              </button>
+              <span className="text-slate-700">|</span>
+            </>
+          )}
+          {onOpenGoogleClassroom && (
+            <>
+              <button
+                onClick={onOpenGoogleClassroom}
+                className="text-emerald-300 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30 transition flex items-center gap-1.5 text-[11px] font-bold cursor-pointer"
+                title="Google Classroom Integration"
+              >
+                <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Google Classroom</span>
+              </button>
+              <span className="text-slate-700">|</span>
+            </>
+          )}
+          {onOpenDailyCodeModal && (
+            <button
+              onClick={onOpenDailyCodeModal}
+              className="text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 transition flex items-center gap-1.5 text-[11px] font-bold"
+              title="Daily Code & Master Admin Passkey Gateway"
+            >
+              <KeyRound className="w-3 h-3 text-amber-400" />
+              <span>Daily Passkey & Plans</span>
+            </button>
+          )}
+          <span className="text-slate-700">|</span>
           <button
             onClick={onOpenAuditLogs}
             className="text-slate-400 hover:text-emerald-400 transition flex items-center gap-1.5 text-[11px] font-medium"
@@ -224,8 +274,37 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Right: Quick Role Switcher, Notifications & Active User Profile */}
-        <div className="flex items-center gap-3">
+        {/* Right: Quick Role Switcher, School Modules, Notifications & Active User Profile */}
+        <div className="flex items-center gap-2.5">
+          {/* Public School Website Toggle Button */}
+          {onViewWebsite && (
+            <button
+              type="button"
+              onClick={onViewWebsite}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-slate-200 hover:text-white text-xs font-bold transition active:scale-95 group shadow-xs cursor-pointer"
+              title="View Public School Website Homepage & Information"
+            >
+              <Globe className="w-3.5 h-3.5 text-teal-400 group-hover:rotate-12 transition-transform" />
+              <span className="hidden sm:inline">School Website</span>
+            </button>
+          )}
+
+          {/* School Modules Launcher Button */}
+          {onOpenSchoolModules && (
+            <button
+              type="button"
+              onClick={onOpenSchoolModules}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-white text-xs font-bold transition active:scale-95 group shadow-xs cursor-pointer"
+              title="Open SchoolLink Website Modules (Excel, Word, Zoom, Notes, AI, Fees)"
+            >
+              <Grid className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-45 transition-transform" />
+              <span className="font-semibold">Modules</span>
+              <span className="hidden lg:inline text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                13
+              </span>
+            </button>
+          )}
+
           {/* Gemini AI Studio Button */}
           {onOpenGeminiAI && (
             <button
@@ -365,7 +444,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition border border-slate-700"
-              title="View In-App & SMS Alerts"
+              title="View Website & SMS Alerts"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (

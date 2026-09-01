@@ -7,6 +7,7 @@ import { MobileTopBar } from './components/mobile/MobileTopBar';
 import { MobileBottomNav } from './components/mobile/MobileBottomNav';
 import { MobileQuickActionSheet } from './components/mobile/MobileQuickActionSheet';
 import { MobileExcelView } from './components/mobile/MobileExcelView';
+import { LandingPage } from './components/common/LandingPage';
 import { LoginPage } from './components/common/LoginPage';
 import { HeadTeacherDashboard } from './components/dashboards/HeadTeacherDashboard';
 import { DeputyHeadDashboard } from './components/dashboards/DeputyHeadDashboard';
@@ -24,12 +25,20 @@ import { UserProfileModal } from './components/modals/UserProfileModal';
 import { RoleSelectionModal } from './components/common/RoleSelectionModal';
 import { PendingVerificationScreen } from './components/common/PendingVerificationScreen';
 import { GeminiChatbotStudio } from './components/tools/GeminiChatbotStudio';
-import { TermReportCard } from './types';
+import { DailyMasterCodeModal } from './components/modals/DailyMasterCodeModal';
+import { GoogleClassroomModal } from './components/modals/GoogleClassroomModal';
+import { GoogleMeetModal } from './components/modals/GoogleMeetModal';
+import { SchoolModulesModal } from './components/modals/SchoolModulesModal';
+import { TermReportCard, UserRole } from './types';
 import { Sparkles } from 'lucide-react';
 
 const SchoolLinkAppContent: React.FC = () => {
   const { currentUser, reportCards, isAuthenticated } = useSchool();
-  const { isSmartphone, effectiveDevice, deviceType, screenWidth } = useDevice();
+  const { isSmartphone } = useDevice();
+
+  // Website View vs Portal Login View when not authenticated
+  const [showWebsiteLanding, setShowWebsiteLanding] = useState<boolean>(true);
+  const [selectedInitialRole, setSelectedInitialRole] = useState<UserRole | undefined>(undefined);
 
   // Mobile Active Bottom Navigation Tab
   const [mobileTab, setMobileTab] = useState<string>('overview');
@@ -43,7 +52,25 @@ const SchoolLinkAppContent: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAiChatbotOpen, setIsAiChatbotOpen] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
+  const [isDailyCodeOpen, setIsDailyCodeOpen] = useState(false);
+  const [isGoogleClassroomOpen, setIsGoogleClassroomOpen] = useState(false);
+  const [isGoogleMeetOpen, setIsGoogleMeetOpen] = useState(false);
+  const [isSchoolModulesOpen, setIsSchoolModulesOpen] = useState(false);
   const [activeReportCard, setActiveReportCard] = useState<TermReportCard | null>(null);
+
+  // Daily Pop-up Code Page: Trigger once per day on app open
+  React.useEffect(() => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const lastShown = localStorage.getItem('schoollink_daily_popup_date');
+      if (lastShown !== todayStr) {
+        setIsDailyCodeOpen(true);
+      }
+    } catch {
+      // Fallback
+      setIsDailyCodeOpen(true);
+    }
+  }, []);
 
   const handleOpenReportCard = (reportCardId: string) => {
     const found = reportCards.find((r) => r.id === reportCardId) || reportCards[0];
@@ -68,16 +95,54 @@ const SchoolLinkAppContent: React.FC = () => {
     }
   };
 
-  // If not authenticated, show role-locked Login & School Gateway
+  // If not authenticated, allow viewing Public School Website OR Login Portal
   if (!isAuthenticated) {
+    if (showWebsiteLanding) {
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-900 font-sans antialiased">
+          <DeviceSwitcherBanner />
+          <LandingPage
+            onEnterPortal={(role?: UserRole) => {
+              if (role) setSelectedInitialRole(role);
+              setShowWebsiteLanding(false);
+            }}
+            onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
+            onOpenDailyCodeModal={() => setIsDailyCodeOpen(true)}
+          />
+
+          <SchoolCreationModal
+            isOpen={isCreateSchoolOpen}
+            onClose={() => setIsCreateSchoolOpen(false)}
+          />
+
+          <DailyMasterCodeModal
+            isOpen={isDailyCodeOpen}
+            onClose={() => setIsDailyCodeOpen(false)}
+            onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-slate-900 text-slate-900 font-sans antialiased">
         <DeviceSwitcherBanner />
-        <LoginPage onOpenCreateSchool={() => setIsCreateSchoolOpen(true)} />
+        <LoginPage
+          onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
+          onOpenDailyCodeModal={() => setIsDailyCodeOpen(true)}
+          onViewWebsite={() => setShowWebsiteLanding(true)}
+          initialRole={selectedInitialRole}
+        />
 
         <SchoolCreationModal
           isOpen={isCreateSchoolOpen}
           onClose={() => setIsCreateSchoolOpen(false)}
+        />
+
+        <DailyMasterCodeModal
+          isOpen={isDailyCodeOpen}
+          onClose={() => setIsDailyCodeOpen(false)}
+          onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
         />
       </div>
     );
@@ -99,6 +164,10 @@ const SchoolLinkAppContent: React.FC = () => {
           onOpenRoleSwitcher={() => setIsRoleModalOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenGeminiAI={() => setIsAiChatbotOpen(true)}
+          onOpenDailyCodeModal={() => setIsDailyCodeOpen(true)}
+          onOpenGoogleMeet={() => setIsGoogleMeetOpen(true)}
+          onOpenSchoolModules={() => setIsSchoolModulesOpen(true)}
+          onViewWebsite={() => setShowWebsiteLanding(true)}
         />
       ) : (
         <Header
@@ -108,6 +177,11 @@ const SchoolLinkAppContent: React.FC = () => {
           onOpenRoleSwitcher={() => setIsRoleModalOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenGeminiAI={() => setIsAiChatbotOpen(true)}
+          onOpenDailyCodeModal={() => setIsDailyCodeOpen(true)}
+          onOpenGoogleClassroom={() => setIsGoogleClassroomOpen(true)}
+          onOpenGoogleMeet={() => setIsGoogleMeetOpen(true)}
+          onOpenSchoolModules={() => setIsSchoolModulesOpen(true)}
+          onViewWebsite={() => setShowWebsiteLanding(true)}
         />
       )}
 
@@ -173,6 +247,7 @@ const SchoolLinkAppContent: React.FC = () => {
                   <PlatformAdminDashboard
                     onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
                     onOpenProfile={() => setIsProfileOpen(true)}
+                    onOpenGoogleMeet={() => setIsGoogleMeetOpen(true)}
                   />
                 )}
               </>
@@ -203,7 +278,7 @@ const SchoolLinkAppContent: React.FC = () => {
         <footer className="bg-white border-t border-slate-200 py-4 px-4 text-center text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
             <p>
-              <strong className="text-slate-800 font-bold">SchoolLink</strong> &bull; Digital School Operating System &bull; Scalable for Zambian & Regional Education
+              <strong className="text-slate-800 font-bold">SchoolLink</strong> &bull; Official Digital School Website & Portal &bull; Scalable for Zambian & Regional Education
             </p>
             <div className="flex items-center gap-4 text-slate-400 font-medium">
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">ECZ Standard Grading</span>
@@ -221,7 +296,7 @@ const SchoolLinkAppContent: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsAiChatbotOpen(true)}
-          className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl p-3.5 shadow-xl shadow-emerald-600/30 flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95 group border border-emerald-400/40"
+          className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl p-3.5 shadow-xl shadow-emerald-600/30 flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95 group border border-emerald-400/40 cursor-pointer"
           title="Open SchoolLink Gemini AI Studio"
         >
           <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
@@ -262,9 +337,50 @@ const SchoolLinkAppContent: React.FC = () => {
         onClose={() => setIsSubscriptionOpen(false)}
       />
 
+      <DailyMasterCodeModal
+        isOpen={isDailyCodeOpen}
+        onClose={() => setIsDailyCodeOpen(false)}
+        onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
+      />
+
       <AuditLogsModal
         isOpen={isAuditLogsOpen}
         onClose={() => setIsAuditLogsOpen(false)}
+      />
+
+      <GoogleClassroomModal
+        isOpen={isGoogleClassroomOpen}
+        onClose={() => setIsGoogleClassroomOpen(false)}
+      />
+
+      <GoogleMeetModal
+        isOpen={isGoogleMeetOpen}
+        onClose={() => setIsGoogleMeetOpen(false)}
+      />
+
+      <SchoolModulesModal
+        isOpen={isSchoolModulesOpen}
+        onClose={() => setIsSchoolModulesOpen(false)}
+        onOpenGeminiAI={() => {
+          setIsSchoolModulesOpen(false);
+          setIsAiChatbotOpen(true);
+        }}
+        onOpenGoogleClassroom={() => {
+          setIsSchoolModulesOpen(false);
+          setIsGoogleClassroomOpen(true);
+        }}
+        onOpenGoogleMeet={() => {
+          setIsSchoolModulesOpen(false);
+          setIsGoogleMeetOpen(true);
+        }}
+        onOpenDailyCode={() => {
+          setIsSchoolModulesOpen(false);
+          setIsDailyCodeOpen(true);
+        }}
+        onOpenAuditLogs={() => {
+          setIsSchoolModulesOpen(false);
+          setIsAuditLogsOpen(true);
+        }}
       />
 
       <DigitalReportCardModal
@@ -300,4 +416,3 @@ export function App() {
 }
 
 export default App;
-

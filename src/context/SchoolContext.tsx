@@ -40,7 +40,9 @@ import {
   PermissionSlip,
   HealthClinicVisit,
   CanteenWallet,
-  ZambianTermInfo
+  ZambianTermInfo,
+  SubscriptionActivationKey,
+  PendingSubscriptionRequest
 } from '../types';
 import {
   INITIAL_SCHOOLS,
@@ -67,6 +69,8 @@ import {
   INITIAL_PERMISSION_SLIPS,
   INITIAL_CLINIC_VISITS,
   INITIAL_CANTEEN_WALLETS,
+  INITIAL_ACTIVATION_KEYS,
+  INITIAL_SUBSCRIPTION_REQUESTS,
   ECZ_GRADING_SCALE
 } from '../mockData';
 import {
@@ -97,6 +101,8 @@ interface SchoolContextType {
   financePublications: FinancePublication[];
   activeLiveMeeting: ZoomMeeting | null;
   isAuthenticated: boolean;
+  activationKeys: SubscriptionActivationKey[];
+  pendingSubRequests: PendingSubscriptionRequest[];
   
   // Actions
   login: (credentials: {
@@ -112,6 +118,23 @@ interface SchoolContextType {
     isNewRegistration?: boolean;
     parentSubscriptionTier?: ParentSubscriptionTier;
   }) => { success: boolean; message?: string; user?: User };
+  authenticateWithMasterPasskey: (passkey: string) => {
+    success: boolean;
+    message: string;
+    user?: User;
+    actionType?: 'admin_login' | 'subscription_activated';
+  };
+  generateActivationKey: (
+    targetType: 'school' | 'parent',
+    targetId: string,
+    tier: 'medium' | 'premium',
+    billingCycle?: 'monthly' | 'annually',
+    notes?: string
+  ) => SubscriptionActivationKey;
+  approveSubscriptionRequest: (requestId: string) => void;
+  rejectSubscriptionRequest: (requestId: string) => void;
+  revokeActivationKey: (keyId: string) => void;
+  submitSubscriptionRequest: (request: Omit<PendingSubscriptionRequest, 'id' | 'requestDate' | 'status'>) => PendingSubscriptionRequest;
   logout: () => void;
   updateStaffPassword: (schoolId: string, newStaffPassword: string) => void;
   verifyStaffPassword: (schoolId: string, passwordAttempt: string) => boolean;
@@ -243,6 +266,8 @@ const STORAGE_KEYS = {
   PERMISSION_SLIPS: 'schoollink_permission_slips_v1',
   CLINIC_VISITS: 'schoollink_clinic_visits_v1',
   CANTEEN_WALLETS: 'schoollink_canteen_wallets_v1',
+  ACTIVATION_KEYS: 'schoollink_activation_keys_v1',
+  SUB_REQUESTS: 'schoollink_sub_requests_v1',
 };
 
 export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -379,6 +404,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return saved ? JSON.parse(saved) : INITIAL_CANTEEN_WALLETS;
   });
 
+  const [activationKeys, setActivationKeys] = useState<SubscriptionActivationKey[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVATION_KEYS);
+    return saved ? JSON.parse(saved) : INITIAL_ACTIVATION_KEYS;
+  });
+
+  const [pendingSubRequests, setPendingSubRequests] = useState<PendingSubscriptionRequest[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SUB_REQUESTS);
+    return saved ? JSON.parse(saved) : INITIAL_SUBSCRIPTION_REQUESTS;
+  });
+
   // Real-time Zambian Academic Calendar Computation Engine
   const [simulatedCalendarDate, setSimulatedCalendarDate] = useState<string | undefined>(undefined);
   const zambianCalendarInfo = getZambianCalendarInfo(simulatedCalendarDate);
@@ -448,6 +483,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.PERMISSION_SLIPS, JSON.stringify(permissionSlips)); }, [permissionSlips]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.CLINIC_VISITS, JSON.stringify(clinicVisits)); }, [clinicVisits]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.CANTEEN_WALLETS, JSON.stringify(canteenWallets)); }, [canteenWallets]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ACTIVATION_KEYS, JSON.stringify(activationKeys)); }, [activationKeys]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.SUB_REQUESTS, JSON.stringify(pendingSubRequests)); }, [pendingSubRequests]);
 
   const currentSchool = schools.find((s) => s.id === currentSchoolId) || schools[0] || INITIAL_SCHOOLS[0];
   const currentUser = allUsers.find((u) => u.id === currentUserId) || allUsers[0] || INITIAL_USERS[0];
@@ -620,8 +657,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!adminUser) {
         adminUser = {
           id: 'user_platform_admin',
-          fullName: fullName?.trim() || 'Dr. Kasongo Chileshe',
-          email: emailOrId?.trim() || 'admin@schoollink.edu.zm',
+          fullName: fullName?.trim() || 'Mwilu Joash',
+          email: emailOrId?.trim() || 'mwilujoash8@gmail.com',
           password: password || 'password123',
           role: 'platform_admin',
           userCategory: 'platform_admin',
@@ -645,7 +682,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       setCurrentUserId(adminUser.id);
       setIsAuthenticated(true);
-      addAuditLog('SUPER_ADMIN_AUTH', `Platform Administrator ${adminUser.fullName} logged into central administration portal.`);
+      addAuditLog('SUPER_ADMIN_AUTH', `Platform Administrator ${adminUser.fullName} (mwilujoash8@gmail.com) authenticated into Central Master Database console.`);
       return { success: true, user: adminUser };
     }
 
@@ -795,6 +832,253 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const logout = () => {
     setIsAuthenticated(false);
+  };
+
+  const generateActivationKey = (
+    targetType: 'school' | 'parent',
+    targetId: string,
+    tier: 'medium' | 'premium',
+    billingCycle: 'monthly' | 'annually' = 'monthly',
+    notes?: string
+  ): SubscriptionActivationKey => {
+    const targetName =
+      targetType === 'school'
+        ? schools.find((s) => s.id === targetId)?.name || 'School Account'
+        : allUsers.find((u) => u.id === targetId)?.fullName || 'Parent Account';
+
+    const priceZMW =
+      targetType === 'school'
+        ? tier === 'premium'
+          ? 450
+          : 400
+        : tier === 'premium'
+        ? 200
+        : 150;
+
+    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const prefix = targetType === 'school' ? (tier === 'premium' ? 'SCH-PREM' : 'SCH-MED') : (tier === 'premium' ? 'PAR-PREM' : 'PAR-MED');
+    const newCode = `${prefix}-${randomSuffix}`;
+
+    const newKey: SubscriptionActivationKey = {
+      id: 'key_' + Date.now(),
+      code: newCode,
+      targetType,
+      targetId,
+      targetName,
+      tier,
+      billingCycle,
+      priceZMW,
+      status: 'active_unused',
+      generatedBy: currentUser.email || 'mwilujoash8@gmail.com',
+      createdAt: new Date().toISOString().split('T')[0],
+      notes: notes || `Issued by Platform Administrator (${currentUser.fullName || 'Mwilu Joash'})`,
+    };
+
+    setActivationKeys((prev) => [newKey, ...prev]);
+    addAuditLog(
+      'ADMIN_KEY_GENERATED',
+      `Platform Administrator generated Single-Use Activation Key [${newCode}] for ${targetName} (${tier.toUpperCase()} - K${priceZMW}/mo).`
+    );
+
+    return newKey;
+  };
+
+  const approveSubscriptionRequest = (requestId: string) => {
+    const req = pendingSubRequests.find((r) => r.id === requestId);
+    if (!req) return;
+
+    if (req.targetType === 'school') {
+      updateSchoolSubscription(req.targetId, req.requestedTier, 'monthly', req.paymentMethod);
+    } else {
+      updateParentSubscription(req.targetId, req.requestedTier, 'monthly', req.paymentMethod);
+    }
+
+    setPendingSubRequests((prev) =>
+      prev.map((r) => (r.id === requestId ? { ...r, status: 'approved' as const } : r))
+    );
+
+    // Also record a redeemed activation key for bookkeeping
+    const generatedKey: SubscriptionActivationKey = {
+      id: 'key_' + Date.now(),
+      code: `AUTH-${req.targetType === 'school' ? 'SCH' : 'PAR'}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+      targetType: req.targetType,
+      targetId: req.targetId,
+      targetName: req.targetName,
+      tier: req.requestedTier,
+      billingCycle: 'monthly',
+      priceZMW: req.priceZMW,
+      status: 'redeemed',
+      generatedBy: 'mwilujoash8@gmail.com',
+      createdAt: new Date().toISOString().split('T')[0],
+      redeemedAt: new Date().toISOString().split('T')[0],
+      redeemedBy: req.requesterName,
+      notes: `Directly approved by Platform Administrator for Payment Ref: ${req.paymentReference}`,
+    };
+
+    setActivationKeys((prev) => [generatedKey, ...prev]);
+
+    addAuditLog(
+      'ADMIN_SUBSCRIPTION_APPROVED',
+      `Platform Administrator (${currentUser.fullName || 'Mwilu Joash'}) approved subscription plan for ${req.targetName} (${req.requestedTier.toUpperCase()} - K${req.priceZMW}/mo, Ref: ${req.paymentReference}).`
+    );
+  };
+
+  const rejectSubscriptionRequest = (requestId: string) => {
+    setPendingSubRequests((prev) =>
+      prev.map((r) => (r.id === requestId ? { ...r, status: 'rejected' as const } : r))
+    );
+    addAuditLog('ADMIN_SUBSCRIPTION_REJECTED', `Platform Administrator rejected subscription request ${requestId}.`);
+  };
+
+  const revokeActivationKey = (keyId: string) => {
+    setActivationKeys((prev) =>
+      prev.map((k) => (k.id === keyId ? { ...k, status: 'revoked' as const } : k))
+    );
+    addAuditLog('ADMIN_KEY_REVOKED', `Platform Administrator revoked activation key ${keyId}.`);
+  };
+
+  const submitSubscriptionRequest = (
+    request: Omit<PendingSubscriptionRequest, 'id' | 'requestDate' | 'status'>
+  ): PendingSubscriptionRequest => {
+    const newReq: PendingSubscriptionRequest = {
+      ...request,
+      id: 'req_' + Date.now(),
+      requestDate: new Date().toISOString().split('T')[0],
+      status: 'pending_review',
+    };
+    setPendingSubRequests((prev) => [newReq, ...prev]);
+    addAuditLog(
+      'SUBSCRIPTION_REQUEST_SUBMITTED',
+      `${request.requesterName} submitted subscription request for ${request.targetName} (${request.requestedTier.toUpperCase()} - K${request.priceZMW}/mo, Ref: ${request.paymentReference}).`
+    );
+    return newReq;
+  };
+
+  const authenticateWithMasterPasskey = (
+    passkey: string
+  ): {
+    success: boolean;
+    message: string;
+    user?: User;
+    actionType?: 'admin_login' | 'subscription_activated';
+  } => {
+    const clean = passkey.trim().toLowerCase().replace(/\s+/g, ' ');
+
+    // Secret Master Passkey "5 April 2013" (and normalized date variations) for Platform Administrator Console access
+    const isMasterCode =
+      clean === '5 april 2013' ||
+      clean === '05 april 2013' ||
+      clean === '5th april 2013' ||
+      clean === '5th of april 2013' ||
+      clean === '5-04-2013' ||
+      clean === '05-04-2013' ||
+      clean === '5/4/2013' ||
+      clean === '05/04/2013' ||
+      clean === '2013-04-05' ||
+      clean === '5 april, 2013';
+
+    if (isMasterCode) {
+      let adminUser = allUsers.find((u) => u.role === 'platform_admin' || u.email === 'mwilujoash8@gmail.com');
+      if (!adminUser) {
+        adminUser = {
+          id: 'user_platform_admin',
+          fullName: 'Mwilu Joash',
+          email: 'mwilujoash8@gmail.com',
+          password: 'password123',
+          role: 'platform_admin',
+          userCategory: 'platform_admin',
+          phone: '+260 977 100001',
+          whatsAppNumber: '+260 977 100001',
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+          coverPhotoUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop&q=80',
+          schoolId: schools[0]?.id || 'school_kabwe_tech',
+          schoolName: 'Platform Central Administration',
+          verificationStatus: 'verified',
+          createdAt: new Date().toISOString(),
+          adminProfile: {
+            superAdminId: 'PADM-ZAM-001',
+            department: 'National School Management Platform Directorate',
+            securityClearance: 'Level 5 (National Directorate)',
+            authorizedBy: 'Ministry of Education & Platform Operations',
+            contactOffice: 'Apex Tower, 7th Floor, Lusaka',
+          },
+        };
+        setAllUsers((prev) => [adminUser!, ...prev]);
+      }
+
+      setCurrentUserId(adminUser.id);
+      setIsAuthenticated(true);
+      addAuditLog(
+        'MASTER_CODE_ACCESS',
+        `Platform Administrator authenticated via Master Security Passkey into Central Master Database console.`
+      );
+
+      return {
+        success: true,
+        message: 'Master Passkey Accepted! Access granted to the Master Platform Admin Database.',
+        user: adminUser,
+        actionType: 'admin_login',
+      };
+    }
+
+    // Check if input is a valid database-issued activation key
+    const formattedCode = passkey.trim().toUpperCase();
+    const foundKey = activationKeys.find(
+      (k) => k.code.trim().toUpperCase() === formattedCode
+    );
+
+    if (foundKey) {
+      if (foundKey.status === 'redeemed') {
+        return {
+          success: false,
+          message: `This activation code (${foundKey.code}) was already redeemed on ${foundKey.redeemedAt || 'earlier'} by ${foundKey.redeemedBy || 'a user'}. Please contact the Platform Administrator (mwilujoash8@gmail.com) for a new key.`,
+        };
+      }
+      if (foundKey.status === 'revoked') {
+        return {
+          success: false,
+          message: `This activation code (${foundKey.code}) has been revoked by the Platform Administrator.`,
+        };
+      }
+
+      // Activate the subscription for target school or parent
+      if (foundKey.targetType === 'school') {
+        updateSchoolSubscription(foundKey.targetId, foundKey.tier, foundKey.billingCycle, 'airtel_money');
+      } else {
+        updateParentSubscription(foundKey.targetId, foundKey.tier, foundKey.billingCycle, 'airtel_money');
+      }
+
+      // Mark key as redeemed in database
+      const redeemerName = currentUser.fullName || currentUser.email || 'Authorized User';
+      setActivationKeys((prev) =>
+        prev.map((k) =>
+          k.id === foundKey.id
+            ? {
+                ...k,
+                status: 'redeemed' as const,
+                redeemedAt: new Date().toISOString().split('T')[0],
+                redeemedBy: redeemerName,
+              }
+            : k
+        )
+      );
+
+      addAuditLog(
+        'ACTIVATION_KEY_REDEEMED',
+        `Activation key [${foundKey.code}] redeemed by ${redeemerName} for ${foundKey.targetName} (${foundKey.tier.toUpperCase()} plan).`
+      );
+
+      return {
+        success: true,
+        message: `Activation Key Verified! ${foundKey.targetType === 'school' ? 'School Staff' : 'Parent'} ${foundKey.tier.toUpperCase()} Subscription has been successfully activated!`,
+        actionType: 'subscription_activated',
+      };
+    }
+
+    return {
+      success: false,
+      message: 'Invalid access key. Please enter a valid administrator master key or an official subscription activation code issued by the Platform Administrator (mwilujoash8@gmail.com).',
+    };
   };
 
   const switchSchool = (schoolId: string) => {
@@ -2406,7 +2690,15 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         financePublications,
         activeLiveMeeting,
         isAuthenticated,
+        activationKeys,
+        pendingSubRequests,
         login,
+        authenticateWithMasterPasskey,
+        generateActivationKey,
+        approveSubscriptionRequest,
+        rejectSubscriptionRequest,
+        revokeActivationKey,
+        submitSubscriptionRequest,
         logout,
         updateStaffPassword,
         verifyStaffPassword,

@@ -37,6 +37,7 @@ import {
   GroundingChunk,
 } from '../../types';
 import { useSchool } from '../../context/SchoolContext';
+import { sendChatMessage } from '../../services/apiClient';
 
 interface GeminiChatbotStudioProps {
   isOpen?: boolean;
@@ -260,37 +261,27 @@ export const GeminiChatbotStudio: React.FC<GeminiChatbotStudioProps> = ({
           ? customSystemInstruction
           : `${customSystemInstruction}\n\nContextual School: ${currentSchool.name}, ${currentSchool.city}, Zambia. Active User: ${currentUser.fullName} (${currentUser.role}).`;
 
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: historyPayload,
-          model: model,
-          systemInstruction: effectiveSystemInstruction,
-          groundingMode: groundingMode,
-          useSearchGrounding: groundingMode === 'google_search',
-          useMapsGrounding: groundingMode === 'google_maps',
-          userLocation: {
-            latitude: selectedLocation.latitude,
-            longitude: selectedLocation.longitude,
-          },
-        }),
+      const result = await sendChatMessage({
+        messages: historyPayload,
+        model: model,
+        systemInstruction: effectiveSystemInstruction,
+        groundingMode: groundingMode,
+        useSearchGrounding: groundingMode === 'google_search',
+        useMapsGrounding: groundingMode === 'google_maps',
+        userLocation: {
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
+        },
       });
-
-      if (!res.ok) {
-        throw new Error(`Server returned HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
 
       const assistantMsg: ChatMessage = {
         id: `model_${Date.now()}`,
         role: 'model',
-        text: data.text || 'I have processed your request.',
+        text: result.text || 'I have processed your request.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        modelUsed: data.modelUsed || model,
-        groundingChunks: data.groundingChunks || [],
-        searchQueries: data.searchQueries || [],
+        modelUsed: model,
+        groundingChunks: [],
+        searchQueries: [],
       };
 
       setMessages((prev) => [...prev, assistantMsg]);

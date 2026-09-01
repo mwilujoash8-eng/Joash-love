@@ -14,7 +14,11 @@ import {
   GraduationCap,
   Users,
   UserCheck,
-  RotateCcw
+  RotateCcw,
+  KeyRound,
+  Video,
+  Grid,
+  Globe
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import { useDevice } from '../../context/DeviceContext';
@@ -27,6 +31,10 @@ interface MobileTopBarProps {
   onOpenRoleSwitcher: () => void;
   onOpenProfile?: () => void;
   onOpenGeminiAI?: () => void;
+  onOpenDailyCodeModal?: () => void;
+  onOpenGoogleMeet?: () => void;
+  onOpenSchoolModules?: () => void;
+  onViewWebsite?: () => void;
 }
 
 export const MobileTopBar: React.FC<MobileTopBarProps> = ({
@@ -36,6 +44,10 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
   onOpenRoleSwitcher,
   onOpenProfile,
   onOpenGeminiAI,
+  onOpenDailyCodeModal,
+  onOpenGoogleMeet,
+  onOpenSchoolModules,
+  onViewWebsite,
 }) => {
   const {
     currentSchool,
@@ -74,7 +86,7 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
   return (
     <>
       <header className="sticky top-0 z-40 bg-[#1E293B] text-white border-b border-slate-700 shadow-md">
-        {/* Compact Mobile App Bar */}
+        {/* SchoolLink Mobile Web Portal Top Bar */}
         <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
           {/* Left: School Selector with Logo */}
           <button
@@ -106,8 +118,56 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
             </div>
           </button>
 
-          {/* Right: Quick Role Badge, Notification Bell & Device Switcher */}
+          {/* Right: School Modules, Quick Role Badge, Notification Bell & Device Switcher */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* School Public Website Button */}
+            {onViewWebsite && (
+              <button
+                type="button"
+                onClick={onViewWebsite}
+                className="p-1.5 rounded-lg bg-slate-800 text-teal-400 border border-slate-700 active:scale-95 shadow-2xs"
+                title="View Public School Website"
+              >
+                <Globe className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* School Modules Launcher Button */}
+            {onOpenSchoolModules && (
+              <button
+                type="button"
+                onClick={onOpenSchoolModules}
+                className="p-1.5 rounded-lg bg-slate-800 text-emerald-400 border border-slate-700 active:scale-95 shadow-2xs"
+                title="SchoolLink Website Modules (Excel, Word, Zoom, Notes, AI, Fees)"
+              >
+                <Grid className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* Google Meet Video Button */}
+            {onOpenGoogleMeet && (
+              <button
+                type="button"
+                onClick={onOpenGoogleMeet}
+                className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 active:scale-95 shadow-2xs"
+                title="Google Meet Video Conferencing"
+              >
+                <Video className="w-3.5 h-3.5 text-emerald-400" />
+              </button>
+            )}
+
+            {/* Daily Passkey & Subscriptions */}
+            {onOpenDailyCodeModal && (
+              <button
+                type="button"
+                onClick={onOpenDailyCodeModal}
+                className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 active:scale-95 shadow-2xs"
+                title="Daily Code & Master Admin Passkey (5 April 2013)"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+            )}
+
             {/* Gemini AI Studio Button */}
             {onOpenGeminiAI && (
               <button

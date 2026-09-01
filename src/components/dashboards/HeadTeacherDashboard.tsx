@@ -36,6 +36,7 @@ import { FinancePublishingStudio } from '../finance/FinancePublishingStudio';
 import { ZambianCalendarBanner } from '../common/ZambianCalendarBanner';
 import { SubscriptionModal } from '../modals/SubscriptionModal';
 import { Layers, DollarSign } from 'lucide-react';
+import { draftCircular } from '../../services/apiClient';
 
 interface HeadTeacherDashboardProps {
   onViewReportCard: (reportCardId: string) => void;
@@ -135,17 +136,12 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
   const handleDraftCircular = async () => {
     setIsAiLoading(true);
     try {
-      const response = await fetch('/api/ai/draft-circular', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schoolName: currentSchool.name,
-          topic: aiTopic,
-          targetAudience: aiTarget,
-          keyPoints: aiKeyPoints,
-        }),
+      const data = await draftCircular({
+        schoolName: currentSchool.name,
+        topic: aiTopic,
+        targetAudience: aiTarget,
+        keyPoints: aiKeyPoints,
       });
-      const data = await response.json();
       setAiGeneratedText(data.circular || '');
       setNewTitle(aiTopic);
       setNewContent(data.circular || '');
