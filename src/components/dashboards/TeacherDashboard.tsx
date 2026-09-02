@@ -97,6 +97,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [aiSubject, setAiSubject] = useState('Mathematics');
   const [aiRemarksOutput, setAiRemarksOutput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const showNotice = (msg: string) => {
+    setActionNotice(msg);
+    setTimeout(() => setActionNotice(null), 4000);
+  };
 
   // Current selected class and subject objects
   const selectedClass = currentSchool.classes.find((c) => c.id === selectedClassId) || currentSchool.classes[0];
@@ -163,14 +169,14 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       isLocked: false,
     });
 
-    alert('Assessment scores draft saved successfully!');
+    showNotice('Assessment scores draft saved successfully!');
   };
 
   const handleSubmitToHeadTeacher = () => {
     handleSaveDraft();
     const assId = `ass_${selectedClassId}_${selectedSubjectId}_${selectedAssessmentType}`;
     submitAssessment(assId);
-    alert('Assessment submitted to the Head Teacher for official approval and locking!');
+    showNotice('Assessment submitted to the Head Teacher for official approval and locking!');
   };
 
   const handleSaveAttendance = () => {
@@ -197,7 +203,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       entries,
     });
 
-    alert(`Attendance for ${selectedClass?.name} on ${attendanceDate} saved. Absent alerts sent to parents.`);
+    showNotice(`Attendance for ${selectedClass?.name} on ${attendanceDate} saved. Absent alerts sent to parents.`);
   };
 
   const handleGenerateAiRemark = async () => {
@@ -220,6 +226,21 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   return (
     <div className="space-y-6">
+      {actionNotice && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs sm:text-sm flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span className="font-semibold">{actionNotice}</span>
+          </div>
+          <button
+            onClick={() => setActionNotice(null)}
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Official Zambian Ministry of Education Calendar Engine */}
       <ZambianCalendarBanner />
 
@@ -731,7 +752,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
             <button
               onClick={() => {
-                alert('Copied to gradebook remarks clipboard!');
+                showNotice('Copied to gradebook remarks clipboard!');
               }}
               disabled={!aiRemarksOutput}
               className="py-2 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white rounded-xl text-xs font-bold transition"

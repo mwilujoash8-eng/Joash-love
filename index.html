@@ -9,6 +9,15 @@
     <meta property="og:description" content="The official SchoolLink digital school website and educational portal with responsive smartphone and laptop views, embedded Zoom classrooms, Excel and Word studios, ECZ grading, Gemini AI, and student-parent portals." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function(){
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100">
     <noscript>

@@ -77,8 +77,12 @@ export const DailyMasterCodeModal: React.FC<DailyMasterCodeModalProps> = ({
         });
 
         // Store dismissal for today so it doesn't pop up again automatically today
-        const todayStr = new Date().toISOString().split('T')[0];
-        localStorage.setItem('schoollink_daily_popup_date', todayStr);
+        try {
+          const todayStr = new Date().toISOString().split('T')[0];
+          localStorage.setItem('schoollink_daily_popup_date', todayStr);
+        } catch {
+          // Ignore
+        }
 
         setTimeout(() => {
           onClose();
@@ -94,8 +98,12 @@ export const DailyMasterCodeModal: React.FC<DailyMasterCodeModalProps> = ({
 
   const handleDismiss = () => {
     // Record today's date in localStorage
-    const todayStr = new Date().toISOString().split('T')[0];
-    localStorage.setItem('schoollink_daily_popup_date', todayStr);
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      localStorage.setItem('schoollink_daily_popup_date', todayStr);
+    } catch {
+      // Ignore
+    }
     onClose();
   };
 

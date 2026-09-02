@@ -109,6 +109,12 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
   const [calendarTerms, setCalendarTerms] = useState(currentSchool.terms);
   const [selectedTermId, setSelectedTermId] = useState<TermId>(currentSchool.activeTerm);
 
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const showNotice = (msg: string) => {
+    setActionNotice(msg);
+    setTimeout(() => setActionNotice(null), 4000);
+  };
+
   // Analytics data for Recharts
   const gradePerformanceData = [
     { grade: 'Grade 8', passRate: 91.5, distinctionCount: 14, total: 72 },
@@ -172,11 +178,26 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
 
     setNewTitle('');
     setNewContent('');
-    alert('Official announcement broadcasted to all school users!');
+    showNotice('Official announcement broadcasted to all school users!');
   };
 
   return (
     <div className="space-y-6">
+      {actionNotice && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs sm:text-sm flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span className="font-semibold">{actionNotice}</span>
+          </div>
+          <button
+            onClick={() => setActionNotice(null)}
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Official Zambian Ministry of Education Calendar Engine */}
       <ZambianCalendarBanner />
 
@@ -693,7 +714,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   currentSchool.classes.forEach((c) => {
                     publishTermReportCards(c.id, currentSchool.activeTerm);
                   });
-                  alert('Term 1 Report Cards successfully consolidated and published to all parents and students!');
+                  showNotice('Term 1 Report Cards successfully consolidated and published to all parents and students!');
                 }}
                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-2"
               >
@@ -821,7 +842,7 @@ export const HeadTeacherDashboard: React.FC<HeadTeacherDashboardProps> = ({
                   currentSchool.assessmentWeighting,
                   currentSchool.gradingScale
                 );
-                alert('Academic calendar settings updated successfully!');
+                showNotice('Academic calendar settings updated successfully!');
               }}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-200 transition"
             >

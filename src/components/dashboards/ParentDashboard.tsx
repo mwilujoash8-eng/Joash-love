@@ -90,6 +90,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   // Inquiry message
   const [inquirySubject, setInquirySubject] = useState('Academic inquiry regarding Mathematics performance');
   const [inquiryBody, setInquiryBody] = useState('');
+  const [inquirySent, setInquirySent] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -458,10 +459,19 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               />
             </div>
 
+            {inquirySent && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Inquiry dispatched directly to the Class Teacher and Head Teacher desk!</span>
+              </div>
+            )}
+
             <button
               onClick={() => {
-                alert('Inquiry dispatched directly to the Class Teacher and Head Teacher desk!');
+                if (!inquiryBody.trim()) return;
+                setInquirySent(true);
                 setInquiryBody('');
+                setTimeout(() => setInquirySent(false), 5000);
               }}
               className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
             >

@@ -873,7 +873,7 @@ export const TeacherExcelStudio: React.FC = () => {
             setSyncStatus('Imported Workbook JSON successfully');
           }
         } catch {
-          alert('Invalid Workbook JSON file.');
+          setSyncStatus('Error: Invalid Workbook JSON file.');
         }
       } else if (file.name.endsWith('.csv')) {
         const lines = content.split(/\r\n|\n/);
@@ -958,7 +958,7 @@ export const TeacherExcelStudio: React.FC = () => {
   // Delete Sheet
   const handleDeleteSheet = (id: string) => {
     if (sheets.length <= 1) {
-      alert('Workbook must contain at least one visible worksheet.');
+      setSyncStatus('Workbook must contain at least one visible worksheet.');
       return;
     }
     const filtered = sheets.filter((s) => s.id !== id);

@@ -35,9 +35,13 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [deviceMode, setDeviceModeState] = useState<DeviceModeOverride>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY) as DeviceModeOverride;
-      if (saved === 'smartphone' || saved === 'desktop' || saved === 'auto') {
-        return saved;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY) as DeviceModeOverride;
+        if (saved === 'smartphone' || saved === 'desktop' || saved === 'auto') {
+          return saved;
+        }
+      } catch {
+        // Ignore storage restrictions
       }
     }
     return 'auto';
@@ -71,7 +75,11 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setDeviceMode = (mode: DeviceModeOverride) => {
     setDeviceModeState(mode);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, mode);
+      try {
+        localStorage.setItem(STORAGE_KEY, mode);
+      } catch {
+        // Ignore storage restrictions
+      }
     }
   };
 

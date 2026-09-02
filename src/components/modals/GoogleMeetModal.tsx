@@ -111,6 +111,7 @@ export const GoogleMeetModal: React.FC<GoogleMeetModalProps> = ({ isOpen, onClos
 
   // Manual Join input
   const [manualCode, setManualCode] = useState('');
+  const [copiedMeetingId, setCopiedMeetingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -714,13 +715,20 @@ export const GoogleMeetModal: React.FC<GoogleMeetModalProps> = ({ isOpen, onClos
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText(session.meetUri);
-                            alert(`Google Meet link copied: ${session.meetUri}`);
+                            if (navigator.clipboard) {
+                              navigator.clipboard.writeText(session.meetUri);
+                            }
+                            setCopiedMeetingId(session.id);
+                            setTimeout(() => setCopiedMeetingId(null), 2500);
                           }}
-                          className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                          className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer flex items-center gap-1"
                           title="Copy Link"
                         >
-                          <Share2 className="w-3.5 h-3.5" />
+                          {copiedMeetingId === session.id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Share2 className="w-3.5 h-3.5" />
+                          )}
                         </button>
 
                         <a

@@ -100,6 +100,32 @@ export const ParentFeePaymentPortal: React.FC<ParentFeePaymentPortalProps> = ({
     Math.round(((statement.totalPaid || 0) / (statement.totalInvoiced || 1)) * 100)
   );
 
+  const downloadOfficialReceipt = (receiptNo: string, amount: number, channel: string, dateStr?: string) => {
+    const receiptContent = `=====================================================
+OFFICIAL PAYMENT RECEIPT - ${currentSchool.name.toUpperCase()}
+Ministry of Education Registered Centre #${currentSchool.code}
+=====================================================
+Receipt Number: ${receiptNo}
+Date Issued: ${dateStr || new Date().toLocaleDateString('en-GB')}
+Student Name: ${studentName} (${studentNumber})
+Amount Cleared: ZMW ${amount.toLocaleString()}.00
+Payment Channel: ${channel.toUpperCase().replace('_', ' ')}
+Validation Status: VERIFIED & LEDGER SYNCHRONIZED
+Processed by: SchoolLink Digital Revenue Gateway
+=====================================================
+Thank you for your payment. Please retain for your records.`;
+
+    const blob = new Blob([receiptContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Receipt_${receiptNo}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleProcessPayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (paymentAmount <= 0) return;
@@ -258,7 +284,7 @@ export const ParentFeePaymentPortal: React.FC<ParentFeePaymentPortalProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => alert(`Receipt #${lastReceipt.receiptNumber} downloaded as official PDF.`)}
+              onClick={() => downloadOfficialReceipt(lastReceipt.receiptNumber, lastReceipt.amount, lastReceipt.channel, lastReceipt.timestamp)}
               className="px-3.5 py-2 bg-white text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-50 transition cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
@@ -540,7 +566,7 @@ export const ParentFeePaymentPortal: React.FC<ParentFeePaymentPortalProps> = ({
                     </div>
                     <button
                       type="button"
-                      onClick={() => alert(`Generated Official Stamped Receipt for ${tx.receiptNumber}\nStudent: ${studentName}\nAmount: ZMW ${tx.amount}\nChannel: ${tx.channel}`)}
+                      onClick={() => downloadOfficialReceipt(tx.receiptNumber, tx.amount, tx.channel, tx.timestamp)}
                       className="text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-emerald-600 flex items-center gap-1 mt-1 cursor-pointer"
                     >
                       <Download className="w-3 h-3" />

@@ -343,9 +343,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activeLiveMeeting, setActiveLiveMeeting] = useState<ZoomMeeting | null>(null);
 
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
-    if (saved) return JSON.parse(saved);
-    return [
+    const defaultNotifs: AppNotification[] = [
       {
         id: 'notif_1',
         userId: 'user_parent_mweemba',
@@ -374,6 +372,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isRead: true,
       },
     ];
+    return safeLoad(STORAGE_KEYS.NOTIFICATIONS, defaultNotifs);
   });
 
   // Sync to local storage safely
@@ -2558,7 +2557,13 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const resetDemoData = () => {
-    localStorage.clear();
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.clear();
+      }
+    } catch (e) {
+      console.warn('[Storage] Error clearing localStorage:', e);
+    }
     setSchools(INITIAL_SCHOOLS);
     setAllUsers(INITIAL_USERS);
     setCurrentSchoolId('school_kabwe_tech');

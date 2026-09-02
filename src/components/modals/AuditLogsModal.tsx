@@ -31,6 +31,28 @@ export const AuditLogsModal: React.FC<AuditLogsModalProps> = ({ isOpen, onClose 
     return matchSearch && matchFilter;
   });
 
+  const handleExportCsv = () => {
+    const headers = ['Timestamp', 'Actor Name', 'Actor Role', 'Action', 'Details', 'IP Address'];
+    const rows = filteredLogs.map((l) => [
+      `"${l.timestamp}"`,
+      `"${l.userName || ''}"`,
+      `"${l.userRole || ''}"`,
+      `"${l.action}"`,
+      `"${(l.details || '').replace(/"/g, '""')}"`,
+      `"${l.ipAddress || '102.140.211.89'}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SchoolLink_Audit_Log_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
@@ -126,8 +148,8 @@ export const AuditLogsModal: React.FC<AuditLogsModalProps> = ({ isOpen, onClose 
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
           <span>Showing {filteredLogs.length} verified events</span>
           <button
-            onClick={() => alert('Audit trail exported as cryptographically verified CSV!')}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+            onClick={handleExportCsv}
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Audit Log (CSV)</span>
