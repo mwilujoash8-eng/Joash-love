@@ -60,6 +60,7 @@ export const SchoolPublicWebsite: React.FC<SchoolPublicWebsiteProps> = ({
   const [previousSchool, setPreviousSchool] = useState('');
   const [inquiryNotes, setInquiryNotes] = useState('');
   const [admissionSuccessMsg, setAdmissionSuccessMsg] = useState<string | null>(null);
+  const [admissionErrorMsg, setAdmissionErrorMsg] = useState<string | null>(null);
   const [isSubmittingInquiry, setIsSubmittingInquiry] = useState(false);
 
   // Search filter for circulars
@@ -69,8 +70,9 @@ export const SchoolPublicWebsite: React.FC<SchoolPublicWebsiteProps> = ({
 
   const handleAdmissionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!applicantName || !parentPhone) {
-      alert('Please provide the applicant student name and parent contact number.');
+    setAdmissionErrorMsg(null);
+    if (!applicantName.trim() || !parentPhone.trim()) {
+      setAdmissionErrorMsg('Please provide both the applicant student name and parent contact number.');
       return;
     }
     setIsSubmittingInquiry(true);
@@ -716,6 +718,16 @@ export const SchoolPublicWebsite: React.FC<SchoolPublicWebsiteProps> = ({
               <div>
                 <p className="font-bold">Application Received Successfully!</p>
                 <p className="mt-1 leading-relaxed">{admissionSuccessMsg}</p>
+              </div>
+            </div>
+          )}
+
+          {admissionErrorMsg && (
+            <div className="mb-8 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in">
+              <HelpCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Information Required</p>
+                <p className="mt-1 leading-relaxed">{admissionErrorMsg}</p>
               </div>
             </div>
           )}

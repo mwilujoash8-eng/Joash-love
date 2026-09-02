@@ -140,7 +140,8 @@ const SchoolLinkAppContent: React.FC = () => {
     );
   }
 
-  const isPending = currentUser.verificationStatus === 'pending';
+  const isPending = currentUser?.verificationStatus === 'pending';
+  const userRole = currentUser?.role || 'head_teacher';
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col font-sans selection:bg-emerald-600 selection:text-white antialiased">
@@ -194,7 +195,7 @@ const SchoolLinkAppContent: React.FC = () => {
               <MobileExcelView />
             ) : (
               <>
-                {currentUser.role === 'head_teacher' && (
+                {userRole === 'head_teacher' && (
                   <HeadTeacherDashboard
                     onViewReportCard={handleOpenReportCard}
                     onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
@@ -202,28 +203,28 @@ const SchoolLinkAppContent: React.FC = () => {
                   />
                 )}
 
-                {currentUser.role === 'deputy_head_teacher' && (
+                {userRole === 'deputy_head_teacher' && (
                   <DeputyHeadDashboard
                     onViewReportCard={handleOpenReportCard}
                     onOpenProfile={() => setIsProfileOpen(true)}
                   />
                 )}
 
-                {currentUser.role === 'teacher' && (
+                {userRole === 'teacher' && (
                   <TeacherDashboard
                     onViewReportCard={handleOpenReportCard}
                     onOpenProfile={() => setIsProfileOpen(true)}
                   />
                 )}
 
-                {currentUser.role === 'student' && (
+                {userRole === 'student' && (
                   <StudentDashboard
                     onViewReportCard={handleOpenReportCard}
                     onOpenProfile={() => setIsProfileOpen(true)}
                   />
                 )}
 
-                {currentUser.role === 'parent' && (
+                {userRole === 'parent' && (
                   <ParentDashboard
                     onViewReportCard={handleOpenReportCard}
                     onOpenRegisterUser={() => setIsRegisterUserOpen(true)}
@@ -231,11 +232,11 @@ const SchoolLinkAppContent: React.FC = () => {
                   />
                 )}
 
-                {currentUser.role === 'school_board' && (
+                {userRole === 'school_board' && (
                   <BoardDashboard onOpenProfile={() => setIsProfileOpen(true)} />
                 )}
 
-                {currentUser.role === 'platform_admin' && (
+                {userRole === 'platform_admin' && (
                   <PlatformAdminDashboard
                     onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
                     onOpenProfile={() => setIsProfileOpen(true)}
