@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(({ command }) => {
   return {
-    base: process.env.VITE_BASE || '/',
+    base: command === 'serve' ? '/' : (process.env.VITE_BASE || './'),
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

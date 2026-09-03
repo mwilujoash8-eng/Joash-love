@@ -28,14 +28,14 @@ SchoolLink is a complete, modern institutional school website and digital educat
 
 ## 🚀 How to Publish on GitHub Pages as a Website (Step-by-Step)
 
-This project is built to run as a standalone website on **GitHub Pages** with automated zero-config deployment.
+SchoolLink is fully optimized to run either as a standalone static web application on **GitHub Pages**, **Vercel**, **Netlify**, or **Cloudflare Pages**, or as a full-stack container on **Cloud Run** or **Render**.
 
-### Method 1: Automated GitHub Actions (Recommended)
+### Method 1: Automated GitHub Actions Deployment (Recommended — 100% Automated)
 
 1. **Create a new repository on GitHub**:
-   - Go to [github.com/new](https://github.com/new) and create a repository (e.g. `schoollink` or `my-school-website`).
+   - Go to [github.com/new](https://github.com/new) and create a repository (e.g. `schoollink`).
 
-2. **Initialize Git & Push**:
+2. **Push your code to GitHub**:
    ```bash
    git init
    git add .
@@ -45,25 +45,42 @@ This project is built to run as a standalone website on **GitHub Pages** with au
    git push -u origin main
    ```
 
-3. **Enable GitHub Pages**:
-   - Open your repository on GitHub.
-   - Navigate to **Settings** > **Pages**.
-   - Under **Build and deployment** > **Source**, select **GitHub Actions**.
-   - The workflow located at `.github/workflows/deploy.yml` will automatically build the site (`dist/`) and publish your live website at:
+3. **Enable GitHub Pages via Actions**:
+   - On GitHub, go to your repository **Settings** tab.
+   - In the left sidebar, click **Pages**.
+   - Under **Build and deployment** > **Source**, change the dropdown to **GitHub Actions**.
+   - That's it! GitHub will run the included workflow (`.github/workflows/deploy.yml`) automatically, build your application, and publish your website at:
      ```
      https://<YOUR_USERNAME>.github.io/<YOUR_REPOSITORY_NAME>/
      ```
 
-### Method 2: Manual Static Build
+---
+
+### Method 2: One-Command Publish with `npm run deploy`
+
+If you prefer deploying directly from your terminal to GitHub Pages without setting up Actions:
 ```bash
-# Install dependencies
-npm install
-
-# Build the production static website
-npm run build
-
-# The output in ./dist can be uploaded to any static web host (GitHub Pages, Netlify, Vercel, Cloudflare Pages)
+# 1. Ensure git remote origin is set to your GitHub repo
+# 2. Run the automated deploy script:
+npm run deploy
 ```
+This automatically compiles the production assets into `dist/` and pushes them cleanly to the `gh-pages` branch on your GitHub repository. Then simply set **Settings > Pages > Source** to `Deploy from a branch` (`gh-pages` / `/root`).
+
+---
+
+### Method 3: Static Hosting (Vercel, Netlify, Cloudflare Pages)
+```bash
+npm run build:pages
+# Deploy the generated ./dist folder directly to Vercel, Netlify, or Cloudflare Pages with zero configuration needed.
+```
+
+---
+
+### 🛡️ Why SchoolLink Never Fails on GitHub Pages
+- **Relative Asset Resolution**: Assets are compiled with `./assets/...` relative linking, ensuring the site functions at any subpath (`/<repo-name>/`) without 404 asset errors.
+- **Jekyll Bypassed (`.nojekyll`)**: Contains `.nojekyll` so GitHub Pages never drops asset files.
+- **Client Educational Intelligence Fallback**: If an Express server is absent, all AI features (ECZ lesson drafting, circular generation, student remark synthesis) seamlessly switch to the embedded client-side intelligence engine.
+- **Defensive Storage Isolation**: Browser storage is guarded against sandbox and iframe restrictions, guaranteeing no crash on load.
 
 ---
 
