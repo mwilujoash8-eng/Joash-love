@@ -24,6 +24,7 @@ import { AuditLogsModal } from './components/modals/AuditLogsModal';
 import { UserProfileModal } from './components/modals/UserProfileModal';
 import { RoleSelectionModal } from './components/common/RoleSelectionModal';
 import { PendingVerificationScreen } from './components/common/PendingVerificationScreen';
+import { AdminAccessGatekeeper } from './components/common/AdminAccessGatekeeper';
 import { GeminiChatbotStudio } from './components/tools/GeminiChatbotStudio';
 import { DailyMasterCodeModal } from './components/modals/DailyMasterCodeModal';
 import { GoogleClassroomModal } from './components/modals/GoogleClassroomModal';
@@ -33,7 +34,7 @@ import { TermReportCard, UserRole } from './types';
 import { Sparkles } from 'lucide-react';
 
 const SchoolLinkAppContent: React.FC = () => {
-  const { currentUser, reportCards, isAuthenticated } = useSchool();
+  const { currentUser, reportCards, isAuthenticated, isDemoMode, isAdminUnlocked } = useSchool();
   const { isSmartphone } = useDevice();
 
   // Website View vs Portal Login View when not authenticated
@@ -196,11 +197,18 @@ const SchoolLinkAppContent: React.FC = () => {
             ) : (
               <>
                 {userRole === 'head_teacher' && (
-                  <HeadTeacherDashboard
-                    onViewReportCard={handleOpenReportCard}
-                    onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
-                    onOpenProfile={() => setIsProfileOpen(true)}
-                  />
+                  isDemoMode && !isAdminUnlocked ? (
+                    <AdminAccessGatekeeper
+                      targetRole="head_teacher"
+                      onUnlockSuccess={() => {}}
+                    />
+                  ) : (
+                    <HeadTeacherDashboard
+                      onViewReportCard={handleOpenReportCard}
+                      onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
+                      onOpenProfile={() => setIsProfileOpen(true)}
+                    />
+                  )
                 )}
 
                 {userRole === 'deputy_head_teacher' && (
@@ -237,11 +245,18 @@ const SchoolLinkAppContent: React.FC = () => {
                 )}
 
                 {userRole === 'platform_admin' && (
-                  <PlatformAdminDashboard
-                    onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
-                    onOpenProfile={() => setIsProfileOpen(true)}
-                    onOpenGoogleMeet={() => setIsGoogleMeetOpen(true)}
-                  />
+                  isDemoMode && !isAdminUnlocked ? (
+                    <AdminAccessGatekeeper
+                      targetRole="platform_admin"
+                      onUnlockSuccess={() => {}}
+                    />
+                  ) : (
+                    <PlatformAdminDashboard
+                      onOpenCreateSchool={() => setIsCreateSchoolOpen(true)}
+                      onOpenProfile={() => setIsProfileOpen(true)}
+                      onOpenGoogleMeet={() => setIsGoogleMeetOpen(true)}
+                    />
+                  )
                 )}
               </>
             )}

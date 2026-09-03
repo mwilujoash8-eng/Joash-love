@@ -103,6 +103,12 @@ interface SchoolContextType {
   isAuthenticated: boolean;
   activationKeys: SubscriptionActivationKey[];
   pendingSubRequests: PendingSubscriptionRequest[];
+  isDemoMode: boolean;
+  setDemoMode: (enabled: boolean) => void;
+  isAdminUnlocked: boolean;
+  unlockAdminWithCode: (code: string) => { success: boolean; message: string };
+  lockAdmin: () => void;
+  isRoleSwitchingAllowed: boolean;
   
   // Actions
   login: (credentials: {
@@ -335,6 +341,98 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [canteenWallets, setCanteenWallets] = useState<Record<string, CanteenWallet>>(() => safeLoad(STORAGE_KEYS.CANTEEN_WALLETS, INITIAL_CANTEEN_WALLETS));
   const [activationKeys, setActivationKeys] = useState<SubscriptionActivationKey[]>(() => safeLoad(STORAGE_KEYS.ACTIVATION_KEYS, INITIAL_ACTIVATION_KEYS));
   const [pendingSubRequests, setPendingSubRequests] = useState<PendingSubscriptionRequest[]>(() => safeLoad(STORAGE_KEYS.SUB_REQUESTS, INITIAL_SUBSCRIPTION_REQUESTS));
+
+  // Demo Mode and Admin Security Access
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('demo') === 'false' || urlParams.get('mode') === 'live') {
+          return false;
+        }
+        if (urlParams.get('demo') === 'true' || urlParams.get('mode') === 'demo') {
+          return true;
+        }
+        const saved = localStorage.getItem('schoollink_demo_mode_v1');
+        if (saved !== null) {
+          return saved === 'true';
+        }
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = sessionStorage.getItem('schoollink_admin_unlocked');
+        return saved === 'true';
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  const setDemoMode = (enabled: boolean) => {
+    setIsDemoMode(enabled);
+    try {
+      localStorage.setItem('schoollink_demo_mode_v1', enabled ? 'true' : 'false');
+    } catch {}
+  };
+
+  const unlockAdminWithCode = (code: string): { success: boolean; message: string } => {
+    const clean = code.trim().toLowerCase().replace(/\s+/g, ' ');
+    const isMasterCode =
+      clean === '5 april 2013' ||
+      clean === '05 april 2013' ||
+      clean === '5th april 2013' ||
+      clean === '5th of april 2013' ||
+      clean === '5-04-2013' ||
+      clean === '05-04-2013' ||
+      clean === '5/4/2013' ||
+      clean === '05/04/2013' ||
+      clean === '2013-04-05' ||
+      clean === '5 april, 2013';
+
+    const cleanRaw = code.trim().toUpperCase();
+    const targetSchool = schools.find((s) => s.id === currentSchoolId) || schools[0];
+    const isStaffPass = Boolean(targetSchool?.staffPassword && cleanRaw === targetSchool.staffPassword.toUpperCase());
+    const isAdminCode = cleanRaw === 'ADMIN-2026' || cleanRaw === 'STAFF-2026' || cleanRaw === 'ECZ-2026';
+    const isActivationKey = activationKeys.some(
+      (k) => k.code.trim().toUpperCase() === cleanRaw && k.status === 'active_unused'
+    );
+
+    if (isMasterCode || isStaffPass || isAdminCode || isActivationKey) {
+      setIsAdminUnlocked(true);
+      try {
+        sessionStorage.setItem('schoollink_admin_unlocked', 'true');
+      } catch {}
+      addAuditLog(
+        'ADMIN_DASHBOARD_UNLOCKED',
+        `Admin dashboard unlocked in Demo Mode using authorized security passkey verification.`
+      );
+      return {
+        success: true,
+        message: 'Security Passkey Accepted! Administrator dashboard unlocked.',
+      };
+    }
+
+    return {
+      success: false,
+      message: 'Invalid passkey. Access to Administrator dashboard is restricted in Demo Mode.',
+    };
+  };
+
+  const lockAdmin = () => {
+    setIsAdminUnlocked(false);
+    try {
+      sessionStorage.removeItem('schoollink_admin_unlocked');
+    } catch {}
+    addAuditLog('ADMIN_DASHBOARD_LOCKED', 'Administrator dashboard access locked.');
+  };
 
   // Real-time Zambian Academic Calendar Computation Engine
   const [simulatedCalendarDate, setSimulatedCalendarDate] = useState<string | undefined>(undefined);
@@ -1013,11 +1111,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const switchUser = (userId: string) => {
     const user = allUsers.find((u) => u.id === userId);
-    if (user) {
-      setCurrentUserId(user.id);
-      if (user.schoolId && user.schoolId !== currentSchoolId) {
-        setCurrentSchoolId(user.schoolId);
-      }
+    if (!user) return;
+
+    // Check current user role
+    const current = allUsers.find((u) => u.id === currentUserId) || allUsers[0];
+    const isCurrentAdmin = current?.role === 'head_teacher' || current?.role === 'platform_admin';
+
+    // If NOT in demo mode and NOT an admin, role switching is forbidden (user is stuck to their assigned role)
+    if (!isDemoMode && !isCurrentAdmin) {
+      return;
+    }
+
+    setCurrentUserId(user.id);
+    if (user.schoolId && user.schoolId !== currentSchoolId) {
+      setCurrentSchoolId(user.schoolId);
     }
   };
 
@@ -2619,6 +2726,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isAuthenticated,
         activationKeys,
         pendingSubRequests,
+        isDemoMode,
+        setDemoMode,
+        isAdminUnlocked,
+        unlockAdminWithCode,
+        lockAdmin,
+        isRoleSwitchingAllowed: isDemoMode || currentUser?.role === 'head_teacher' || currentUser?.role === 'platform_admin',
         login,
         authenticateWithMasterPasskey,
         generateActivationKey,

@@ -18,11 +18,14 @@ import {
   KeyRound,
   Video,
   Grid,
-  Globe
+  Globe,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import { useDevice } from '../../context/DeviceContext';
 import { UserRole } from '../../types';
+import { AdminAccessModal } from '../modals/AdminAccessModal';
 
 interface MobileTopBarProps {
   onOpenCreateSchool: () => void;
@@ -61,6 +64,11 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
     markNotificationRead,
     clearAllNotifications,
     resetDemoData,
+    isDemoMode,
+    setDemoMode,
+    isAdminUnlocked,
+    lockAdmin,
+    isRoleSwitchingAllowed,
   } = useSchool();
 
   const { deviceMode, setDeviceMode, effectiveDevice, toggleDeviceMode } = useDevice();
@@ -68,6 +76,8 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
   const [showSchoolSheet, setShowSchoolSheet] = useState(false);
   const [showRoleSheet, setShowRoleSheet] = useState(false);
   const [showNotificationSheet, setShowNotificationSheet] = useState(false);
+  const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
+  const [targetAdminUser, setTargetAdminUser] = useState<(typeof allUsers)[0] | null>(null);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -180,16 +190,26 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
               </button>
             )}
 
-            {/* Quick Role Switcher Pill */}
-            <button
-              onClick={() => setShowRoleSheet(true)}
-              className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition active:scale-95 ${roleMeta[currentUser.role].bg}`}
-              title="Tap to switch persona"
-            >
-              {roleMeta[currentUser.role].icon}
-              <span className="max-w-[70px] truncate">{roleMeta[currentUser.role].label.split(' ')[0]}</span>
-              <ChevronDown className="w-2.5 h-2.5 opacity-70" />
-            </button>
+            {/* Quick Role Switcher Pill OR Locked Role Pill */}
+            {isRoleSwitchingAllowed ? (
+              <button
+                onClick={() => setShowRoleSheet(true)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition active:scale-95 cursor-pointer ${roleMeta[currentUser.role].bg}`}
+                title="Tap to switch persona"
+              >
+                {roleMeta[currentUser.role].icon}
+                <span className="max-w-[70px] truncate">{roleMeta[currentUser.role].label.split(' ')[0]}</span>
+                <ChevronDown className="w-2.5 h-2.5 opacity-70" />
+              </button>
+            ) : (
+              <div
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 ${roleMeta[currentUser.role].bg} opacity-90`}
+                title="Assigned Role (Locked in Live Mode)"
+              >
+                <Lock className="w-2.5 h-2.5 text-amber-400" />
+                <span className="max-w-[70px] truncate">{roleMeta[currentUser.role].label.split(' ')[0]}</span>
+              </div>
+            )}
 
             {/* Notification Bell */}
             <button
@@ -316,14 +336,23 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
               {schoolUsers.map((u) => {
                 const r = roleMeta[u.role];
                 const isSelected = u.id === currentUser.id;
+                const isUserAdmin = u.role === 'head_teacher' || u.role === 'platform_admin';
+                const requiresPasskey = isUserAdmin && isDemoMode && !isAdminUnlocked;
+
                 return (
                   <button
                     key={u.id}
                     onClick={() => {
-                      switchUser(u.id);
-                      setShowRoleSheet(false);
+                      if (requiresPasskey) {
+                        setTargetAdminUser(u);
+                        setAdminAccessModalOpen(true);
+                        setShowRoleSheet(false);
+                      } else {
+                        switchUser(u.id);
+                        setShowRoleSheet(false);
+                      }
                     }}
-                    className={`w-full text-left py-3 px-2 flex items-center gap-3 rounded-xl transition ${
+                    className={`w-full text-left py-3 px-2 flex items-center gap-3 rounded-xl transition cursor-pointer ${
                       isSelected ? 'bg-emerald-50/80 font-bold' : 'hover:bg-slate-50'
                     }`}
                   >
@@ -339,6 +368,12 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
                         </span>
                         {u.verificationStatus === 'verified' && (
                           <UserCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        )}
+                        {requiresPasskey && (
+                          <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-300 flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>Code</span>
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
@@ -446,13 +481,24 @@ export const MobileTopBar: React.FC<MobileTopBarProps> = ({
 
             <button
               onClick={() => setShowNotificationSheet(false)}
-              className="w-full mt-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold"
+              className="w-full mt-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
             >
               Done
             </button>
           </div>
         </div>
       )}
+
+      {/* Admin Access Passcode Modal */}
+      <AdminAccessModal
+        isOpen={adminAccessModalOpen}
+        onClose={() => {
+          setAdminAccessModalOpen(false);
+          setTargetAdminUser(null);
+        }}
+        targetRole={targetAdminUser?.role}
+        targetUserId={targetAdminUser?.id}
+      />
     </>
   );
 };
