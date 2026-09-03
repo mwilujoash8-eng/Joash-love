@@ -138,7 +138,7 @@ export const UserRegistrationModal: React.FC<UserRegistrationModalProps> = ({ is
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden animate-in fade-in duration-150">
         {/* Header */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

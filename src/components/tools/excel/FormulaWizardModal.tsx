@@ -329,7 +329,7 @@ export const FormulaWizardModal: React.FC<FormulaWizardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in duration-150">
         {/* Header */}
         <div className="bg-[#107C41] text-white px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">

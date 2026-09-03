@@ -1,1 +1,38 @@
 @import "tailwindcss";
+
+/* Global layout and anti-zoom rules for all devices */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+/* Prevent iOS Safari from auto-zooming into inputs/selects on focus on mobile devices */
+@media screen and (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Utility to hide scrollbars while preserving scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area padding utilities for modern smartphones */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

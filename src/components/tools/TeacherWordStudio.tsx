@@ -28,9 +28,7 @@ import {
   BookOpen,
   Send,
   FileDown,
-  Layers,
-  ZoomIn,
-  ZoomOut
+  Layers
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import { draftDocument } from '../../services/apiClient';
@@ -44,7 +42,6 @@ export const TeacherWordStudio: React.FC<TeacherWordStudioProps> = ({ initialTem
 
   const [activeRibbonTab, setActiveRibbonTab] = useState<'home' | 'insert' | 'layout' | 'templates' | 'ai_drafter'>('home');
   const [documentTitle, setDocumentTitle] = useState('Grade 9 Mathematics - Term 1 Lesson Plan.docx');
-  const [zoomLevel, setZoomLevel] = useState(100);
   const [isAiDrafting, setIsAiDrafting] = useState(false);
   const [aiDraftType, setAiDraftType] = useState<'lesson_plan' | 'exam_paper' | 'scheme_of_work' | 'parent_letter'>('lesson_plan');
   const [aiSubject, setAiSubject] = useState('Mathematics');
@@ -625,14 +622,8 @@ export const TeacherWordStudio: React.FC<TeacherWordStudioProps> = ({ initialTem
       )}
 
       {/* DOCUMENT CANVAS CONTAINER (A4 PAGE SIMULATION) */}
-      <div className="bg-[#525659] p-6 overflow-y-auto max-h-[640px] flex justify-center">
-        <div
-          className="bg-white text-slate-900 shadow-2xl rounded-sm p-10 sm:p-14 w-full max-w-[850px] min-h-[900px] border border-slate-300 font-serif leading-relaxed outline-none transition-transform"
-          style={{
-            transform: `scale(${zoomLevel / 100})`,
-            transformOrigin: 'top center',
-          }}
-        >
+      <div className="bg-[#525659] p-3 sm:p-6 overflow-y-auto max-h-[640px] flex justify-center">
+        <div className="bg-white text-slate-900 shadow-2xl rounded-sm p-6 sm:p-12 w-full max-w-[850px] min-h-[900px] border border-slate-300 font-serif leading-relaxed outline-none">
           {/* Editable Document Area */}
           <div
             ref={editorRef}
@@ -653,22 +644,10 @@ export const TeacherWordStudio: React.FC<TeacherWordStudioProps> = ({ initialTem
           <span>English (Zambia)</span>
         </div>
 
-        <div className="flex items-center gap-2 text-[11px]">
-          <button
-            onClick={() => setZoomLevel(Math.max(70, zoomLevel - 10))}
-            className="hover:text-white text-blue-200"
-            title="Zoom Out"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <span className="font-mono">{zoomLevel}%</span>
-          <button
-            onClick={() => setZoomLevel(Math.min(130, zoomLevel + 10))}
-            className="hover:text-white text-blue-200"
-            title="Zoom In"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
+        <div className="flex items-center gap-2 text-[11px] text-blue-200">
+          <span>Standard A4 View</span>
+          <span>&bull;</span>
+          <span className="font-semibold text-white">ECZ Format</span>
         </div>
       </div>
     </div>

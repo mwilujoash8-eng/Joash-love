@@ -1,6 +1,6 @@
 {
   "name": "SchoolLink - Digital School Operating System",
-  "description": "The official SchoolLink digital school website and educational portal with responsive smartphone and laptop views, embedded Zoom classrooms, Excel and Word studios, ECZ grading, Gemini AI, and student-parent portals.",
+  "description": "The official SchoolLink digital school website and educational portal with responsive clean views for all devices, embedded Google Meet and digital classrooms, Excel and Word studios, ECZ grading, Gemini AI, and student-parent portals.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

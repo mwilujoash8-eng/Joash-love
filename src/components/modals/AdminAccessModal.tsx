@@ -69,7 +69,7 @@ export const AdminAccessModal: React.FC<AdminAccessModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden text-slate-900 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden text-slate-900 animate-in fade-in duration-150">
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-5 sm:p-6 flex items-start justify-between">
           <div className="flex items-center gap-3">

@@ -206,11 +206,11 @@ export const StudentTeacherChatModal: React.FC<StudentTeacherChatModalProps> = (
                 {onLaunchInstantZoomWithTeacher && (
                   <button
                     onClick={() => onLaunchInstantZoomWithTeacher(activePartner.fullName, 'Academic Consultation')}
-                    className="px-3 py-1.5 bg-[#2D8CFF] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition flex items-center gap-1.5 cursor-pointer"
-                    title="Launch instant 1-on-1 Zoom video call"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5 cursor-pointer"
+                    title="Launch instant 1-on-1 video consultation"
                   >
                     <Video className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Launch 1-on-1 Zoom</span>
+                    <span className="hidden sm:inline">Launch Consultation</span>
                   </button>
                 )}
 
@@ -241,10 +241,10 @@ export const StudentTeacherChatModal: React.FC<StudentTeacherChatModalProps> = (
                 Homework Clarification
               </button>
               <button
-                onClick={() => handleTemplateInquiry('Sir, may I request a short 10-minute 1-on-1 Zoom consultation this afternoon to review turning points of quadratic curves?', '1-on-1 Zoom Request')}
+                onClick={() => handleTemplateInquiry('Sir, may I request a short 10-minute 1-on-1 consultation this afternoon to review turning points of quadratic curves?', '1-on-1 Consultation Request')}
                 className="px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 whitespace-nowrap text-[11px] font-medium transition"
               >
-                Request 1-on-1 Zoom Review
+                Request 1-on-1 Review
               </button>
               <button
                 onClick={() => handleTemplateInquiry('Thank you Sir for the feedback on my continuous assessment test. I have corrected the calculations in my notebook.', 'CA Test Followup')}

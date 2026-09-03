@@ -305,7 +305,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenSchoolModules}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-white text-xs font-bold transition active:scale-95 group shadow-xs cursor-pointer"
-              title="Open SchoolLink Website Modules (Excel, Word, Zoom, Notes, AI, Fees)"
+              title="Open SchoolLink Website Modules (Excel, Word, Digital Classroom, Notes, AI, Fees)"
             >
               <Grid className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-45 transition-transform" />
               <span className="font-semibold">Modules</span>

@@ -183,7 +183,7 @@ const SchoolLinkAppContent: React.FC = () => {
       <main
         className={`flex-1 w-full mx-auto ${
           isSmartphone
-            ? 'max-w-xl px-3 sm:px-4 py-3 pb-24'
+            ? 'max-w-xl px-3 sm:px-4 py-3 pb-32'
             : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'
         }`}
       >

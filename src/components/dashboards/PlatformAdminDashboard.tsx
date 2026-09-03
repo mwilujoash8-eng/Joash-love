@@ -1131,7 +1131,7 @@ export const PlatformAdminDashboard: React.FC<PlatformAdminDashboardProps> = ({
                 </button>
 
                 {newlyGeneratedKey && (
-                  <div className="mt-4 p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-white space-y-2 animate-in zoom-in-95 duration-150">
+                  <div className="mt-4 p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-white space-y-2 animate-in fade-in duration-150">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-emerald-300 flex items-center gap-1">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />

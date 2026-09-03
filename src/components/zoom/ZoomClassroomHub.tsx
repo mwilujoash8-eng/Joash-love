@@ -525,7 +525,7 @@ export const ZoomClassroomHub: React.FC<ZoomClassroomHubProps> = ({ onOpenDirect
       {/* INSTANT ZOOM CLASS SETUP MODAL */}
       {isInstantLaunchOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200 my-8">
+          <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden border border-slate-200 shadow-2xl animate-in fade-in duration-150 my-8">
             <div className="bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-white p-5 flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-[#2D8CFF] rounded-xl shadow-md">
@@ -720,7 +720,7 @@ export const ZoomClassroomHub: React.FC<ZoomClassroomHubProps> = ({ onOpenDirect
       {/* SCHEDULE CLASS MODAL */}
       {isScheduleOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200 my-8">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden border border-slate-200 shadow-2xl animate-in fade-in duration-150 my-8">
             <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-[#2D8CFF] rounded-lg">

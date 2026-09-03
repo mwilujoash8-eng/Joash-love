@@ -418,7 +418,7 @@ export const MobileExcelView: React.FC = () => {
       {/* QUICK ADD LEARNER MODAL */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl animate-in fade-in duration-150">
             <h3 className="text-base font-bold text-slate-900">Add Learner to Marksheet</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Automatically assigns next Zambian registration number for Academic Year {academicYear}.

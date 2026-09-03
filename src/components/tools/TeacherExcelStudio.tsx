@@ -1751,18 +1751,7 @@ export const TeacherExcelStudio: React.FC = () => {
             </label>
 
             <div className="flex items-center gap-1 border-l border-slate-300 pl-3">
-              <span className="text-[10px] font-bold text-slate-500">Zoom:</span>
-              {[75, 100, 125].map((z) => (
-                <button
-                  key={z}
-                  onClick={() => setZoomLevel(z)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                    zoomLevel === z ? 'bg-[#107C41] text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  }`}
-                >
-                  {z}%
-                </button>
-              ))}
+              <span className="text-[10px] font-bold text-slate-500">ECZ Spreadsheet View</span>
             </div>
           </div>
         )}
@@ -1865,10 +1854,7 @@ export const TeacherExcelStudio: React.FC = () => {
       )}
 
       {/* 5. SPREADSHEET GRID VIEW */}
-      <div
-        className="overflow-auto bg-slate-100 flex-1 max-h-[560px] relative select-none"
-        style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top left' }}
-      >
+      <div className="overflow-auto bg-slate-100 flex-1 max-h-[560px] relative select-none">
         <table className={`border-collapse table-fixed text-xs bg-white ${!showGridlines ? 'no-grid' : ''}`}>
           {/* COLUMN HEADERS */}
           {showHeadings && (
@@ -2079,8 +2065,8 @@ export const TeacherExcelStudio: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <span className="hidden md:inline">Ready &bull; Auto-Calc Active</span>
-            <span className="font-mono bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold">
-              {zoomLevel}%
+            <span className="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-semibold text-[11px]">
+              Standard Grid
             </span>
           </div>
         </div>

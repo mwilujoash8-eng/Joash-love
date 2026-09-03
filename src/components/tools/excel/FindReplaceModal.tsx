@@ -44,7 +44,7 @@ export const FindReplaceModal: React.FC<FindReplaceModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-md overflow-hidden flex flex-col animate-in fade-in zoom-in-95">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-md overflow-hidden flex flex-col animate-in fade-in duration-150">
         {/* Header */}
         <div className="bg-[#107C41] text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">

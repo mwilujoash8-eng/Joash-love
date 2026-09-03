@@ -178,7 +178,7 @@ export const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-[#1E293B] rounded-3xl shadow-2xl border border-slate-700 w-full max-w-4xl overflow-hidden text-white animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-[#1E293B] rounded-3xl shadow-2xl border border-slate-700 w-full max-w-4xl overflow-hidden text-white animate-in fade-in duration-150">
         {/* Header */}
         <div className="p-6 border-b border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-3">

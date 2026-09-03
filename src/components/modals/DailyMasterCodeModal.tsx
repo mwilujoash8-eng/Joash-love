@@ -132,7 +132,7 @@ export const DailyMasterCodeModal: React.FC<DailyMasterCodeModalProps> = ({
     >
       <div
         id="daily-master-code-modal-card"
-        className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-2xl text-white shadow-2xl overflow-hidden relative my-auto animate-in zoom-in-95 duration-200"
+        className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-2xl text-white shadow-2xl overflow-hidden relative my-auto animate-in fade-in duration-150"
       >
         {/* Decorative Top Accent Bar */}
         <div className="h-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-600" />

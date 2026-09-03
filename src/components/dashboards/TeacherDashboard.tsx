@@ -293,13 +293,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               <span>Duty & Knock-Off Register</span>
             </button>
             <button
-              onClick={() => setActiveTab('zoom')}
-              className="px-3.5 py-2 bg-[#2D8CFF] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Video className="w-4 h-4 text-white" />
-              <span>Zoom Classroom</span>
-            </button>
-            <button
               onClick={() => setIsChatOpen(true)}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-600 cursor-pointer"
             >
@@ -344,7 +337,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           { id: 'groups', label: 'Class & Grade Groups & PTA', icon: <Layers className="w-4 h-4 text-purple-600" />, badge: 'Communities' },
           { id: 'finance', label: 'Finance Publications', icon: <DollarSign className="w-4 h-4 text-amber-600" />, badge: currentUser.isFinanceTeam ? 'Finance Team' : 'Notices' },
           { id: 'gradebook', label: 'Continuous Assessment Gradebook', icon: <Award className="w-4 h-4" /> },
-          { id: 'zoom', label: 'Zoom Virtual Classroom', icon: <Video className="w-4 h-4 text-[#2D8CFF]" />, badge: 'Live Video' },
           { id: 'excel', label: 'Microsoft Excel (Marksheet & Analytics)', icon: <FileSpreadsheet className="w-4 h-4 text-[#107C41]" />, badge: 'Excel Studio' },
           { id: 'word', label: 'Microsoft Word (Lesson Plans & Exams)', icon: <FileText className="w-4 h-4 text-[#2B579A]" />, badge: 'Word Studio' },
           { id: 'attendance', label: 'Student Class Register', icon: <Users className="w-4 h-4" /> },
@@ -423,15 +415,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       {/* TAB: TEACHING TRENDS & REGISTER ANALYTICS (RECHARTS) */}
       {activeTab === 'weekly_trend' && (
         <TeacherTeachingTrendChart />
-      )}
-
-      {/* TAB: ZOOM VIRTUAL CLASSROOM */}
-      {activeTab === 'zoom' && (
-        <ZoomClassroomHub
-          onOpenDirectMessageWithTeacher={(teacherId) => {
-            setIsChatOpen(true);
-          }}
-        />
       )}
 
       {/* TAB: MICROSOFT EXCEL STUDIO */}
@@ -648,7 +631,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-1 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
                     {[
                       { s: 'present', label: 'Present', color: 'bg-emerald-600 text-white' },
                       { s: 'absent', label: 'Absent', color: 'bg-red-600 text-white' },
@@ -796,10 +779,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       <StudentTeacherChatModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
-        onLaunchInstantZoomWithTeacher={(studentName) => {
-          setActiveTab('zoom');
-          setIsChatOpen(false);
-        }}
       />
     </div>
   );
